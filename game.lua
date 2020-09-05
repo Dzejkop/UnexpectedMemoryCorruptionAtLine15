@@ -16,31 +16,32 @@ CHR_HEIGHT = 10
 ----------------
 -- GAME STATE --
 
--- [Control bytes]
--- Builds a control byte from separate bits, big-endian, MSG
-function cb(b0, b1, b2, b3, b4, b5, b6, b7)
-  return b0 << 7 | b1 << 6 | b2 << 5 | b3 << 4
-       | b4 << 3 | b5 << 2 | b6 << 1 | b7
+-- [Control words]
+--- Creates a new control word from given bits.
+--- Accepts bits in big-endian order.
+function cw(b0, b1, b2, b3, b4, b5, b6, b7)
+  return b0 << 7 | b1 << 6 | b2 << 5 | b3 << 4 | b4 << 3 | b5 << 2 | b6 << 1 | b7;
 end
 
-CTRL = {
-  -- Control byte A:
-  -- - bit #0: TODO
-  -- - bit #1: TODO
-  -- - ...
-  [0] = cb(0, 0, 0, 0, 0, 0, 0, 1),
-
-  -- Control byte B
-  [1] = cb(0, 0, 0, 0, 0, 0, 0, 0),
+CWS = {
+  [0] = cw(0, 0, 0, 0, 0, 0, 0, 1),
+  [1] = cw(0, 0, 0, 0, 0, 0, 0, 0),
 }
--- [/Control bytes]
+
+-- [/Control words]
 
 -- [Interface]
--- Index of currently active UI state; see `UI_STATES`
-UI_STATE = 1
+-- Index of currently selected control word; 0..1 or `nil`
+UI_SEL_CWORD = nil
 
-UI_STATES = {
-  -- State: Introduction
+-- Index of currently selected control word's bit; 0..7
+UI_SEL_CWORD_BIT = 0
+
+-- Index of currently active UI screen; see `UI_SCREENS`
+UI_SCREEN = 1
+
+UI_SCREENS = {
+  -- Screen: Introduction
   [1] = {
     react = function()
       -- TODO <remove before deploying>
@@ -50,7 +51,7 @@ UI_STATES = {
 
       for i = 0,31 do
         if btnp(i) then
-          UI_SEL_CTRL_BYTE = 0
+          UI_SEL_CWORD = 0
           ui_goto(2)
         end
       end
@@ -63,41 +64,40 @@ UI_STATES = {
     end,
   },
 
-  -- State: Choosing control byte
+  -- Screen: Choosing control word
   [2] = {
     react = function()
       if btnp(2) then
-        UI_SEL_CTRL_BYTE = (UI_SEL_CTRL_BYTE - 1) % 4
+        UI_SEL_CWORD = (UI_SEL_CWORD - 1) % 4
       end
-    
+
       if btnp(3) then
-        UI_SEL_CTRL_BYTE = (UI_SEL_CTRL_BYTE + 1) % 4
+        UI_SEL_CWORD = (UI_SEL_CWORD + 1) % 4
       end
-    
+
       if btnp(4) then
         ui_goto(3)
       end
     end,
   },
 
-  -- State: Modifying control byte
+  -- Screen: Modifying control word
   [3] = {
     react = function()
       if btnp(2) then
-        UI_SEL_CTRL_BYTE_BIT = (UI_SEL_CTRL_BYTE_BIT - 1) % 8
+        UI_SEL_CWORD_BIT = (UI_SEL_CWORD_BIT - 1) % 8
       end
-    
+
       if btnp(3) then
-        UI_SEL_CTRL_BYTE_BIT = (UI_SEL_CTRL_BYTE_BIT + 1) % 8
+        UI_SEL_CWORD_BIT = (UI_SEL_CWORD_BIT + 1) % 8
       end
 
       if btnp(4) then
-        -- TODO
+        cw_toggle(UI_SEL_CWORD, UI_SEL_CWORD_BIT)
         ui_goto(2)
       end
 
       if btnp(5) then
-        -- TODO
         ui_goto(2)
       end
     end,
@@ -117,54 +117,49 @@ UI_STATES = {
       )
 
       for bit_idx = 0,7 do
-        local bit = cb_get(UI_SEL_CTRL_BYTE, bit_idx)
+        local bit = cw_get(UI_SEL_CWORD, bit_idx) and 1 or 0
         local bit_x = modal_x + 22 + 18 * bit_idx
         local bit_y = modal_y + 15
-        local bit_color = nil
+        local bit_color
 
-        if bit == 0 then
-          bit_color = 2
-        else
+        if bit then
           bit_color = 5
+        else
+          bit_color = 2
         end
 
         -- Underline currently selected bit
-        if bit_idx == UI_SEL_CTRL_BYTE_BIT then
+        if bit_idx == UI_SEL_CWORD_BIT then
           bit_y = bit_y - 5
           rect(bit_x - 1, bit_y + 1.3 * CHR_HEIGHT, 1.8 * CHR_WIDTH, 1, 4)
         end
 
-        -- TODO use different color for `0` and `1`
         print(bit, bit_x, bit_y, bit_color, true, 2)
       end
     end,
   },
 }
-
--- Index of currently selected control byte; 0..3, meaning A..D
-UI_SEL_CTRL_BYTE = nil
-
--- Index of currently selected control bit; 0..7
-UI_SEL_CTRL_BYTE_BIT = 0
 -- [/Interface]
 
-function cb_set(byte, bit_idx, bit_value)
-  CTRL[byte] = 0xFF -- TODO
+function cw_toggle(word_idx, bit_idx)
+  bit_idx = 7 - bit_idx
+  CWS[word_idx] = CWS[word_idx] | (1 << bit_idx)
 end
 
-function cb_get(byte, bit_idx)
-  return CTRL[byte] -- TODO mask
+function cw_get(word_idx, bit_idx)
+  bit_idx = 7 - bit_idx
+  return CWS[word_idx] | (1 << bit_idx) == 1
 end
 
 function print_corrupted(text, y, color)
   local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
-  
+
   for i = 1, #text do
     local ch = text:sub(i, i)
-    
+
     print(ch, x, y, color, true)
 
-    for i = 0,math.random(1,5) do
+    for _ = 0,math.random(1,5) do
       pix(
         x + CHR_WIDTH / 2 + math.random(-8, 8),
         y + math.random(-8, 12),
@@ -178,10 +173,10 @@ end
 
 function print_wavy(text, y, color)
   local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
-  
+
   for i = 1, #text do
     local ch = text:sub(i, i)
-    
+
     print(
       ch,
       x,
@@ -199,13 +194,13 @@ function board_render()
 end
 
 function hud_render()
-  function cb_render(byte_idx)
-    local text = string.format("%.2X", CTRL[byte_idx])
-    local pos_x = 35 + 50 * byte_idx
+  function cw_render(word_idx)
+    local text = string.format("%.2X", CWS[word_idx])
+    local pos_x = 35 + 50 * word_idx
     local pos_y = SCR_HEIGHT - 18
 
     -- Underline currently selected byte
-    if byte_idx == UI_SEL_CTRL_BYTE then
+    if word_idx == UI_SEL_CWORD then
       pos_y = pos_y - 5
       rect(pos_x, pos_y + CHR_HEIGHT * 1.5, 3 * CHR_WIDTH, 1, 4)
     end
@@ -215,27 +210,27 @@ function hud_render()
 
   rect(0, SCR_HEIGHT - 29, SCR_WIDTH, SCR_HEIGHT, 15)
 
-  cb_render(0)
-  cb_render(1)
+  cw_render(0)
+  cw_render(1)
 end
 
 function ui_goto(state)
-  UI_STATE = state
+  UI_SCREEN = state
 end
 
 function ui_react()
-  local ui = UI_STATES[UI_STATE]
+  local screen = UI_SCREENS[UI_SCREEN]
 
-  if ui.react then
-    ui.react()
+  if screen.react then
+    screen.react()
   end
 end
 
 function ui_render()
-  local ui = UI_STATES[UI_STATE]
+  local screen = UI_SCREENS[UI_SCREEN]
 
-  if ui.render then
-    ui.render()
+  if screen.render then
+    screen.render()
   end
 end
 
@@ -243,7 +238,7 @@ function TIC()
   cls()
   ui_react()
 
-  if UI_STATE > 1 then
+  if UI_SCREEN > 1 then
     board_render()
     hud_render()
   end
