@@ -111,7 +111,7 @@ end
 -------------
 
 function hud_render()
-  local hud_h = 30
+  local hud_h = 24
   local hud_y = SCR_HEIGHT - hud_h
 
   function cw_render(x, word_idx)
