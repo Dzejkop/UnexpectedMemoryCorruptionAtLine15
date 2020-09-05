@@ -44,8 +44,8 @@ UI_SCREENS = {
   [1] = {
     react = function()
       -- TODO <remove before deploying>
-       UI_SEL_CWORD = 0
-       ui_goto(2)
+      -- UI_SEL_CWORD = 0
+      -- ui_goto(2)
       -- TODO </>
 
       for i = 0,31 do
@@ -57,7 +57,7 @@ UI_SCREENS = {
     end,
 
     render = function()
-      print_corrupted("UNEXPECTED MEMORY CORRUPTION", 10, 10)
+      print_centered("UNEXPECTED MEMORY CORRUPTION", 10, 10)
       print("Rules are simple:\nblah blah\nblah blah blah", 0, 40, 12)
       print_wavy("Press any key to start", SCR_HEIGHT - 15, 4)
     end,
@@ -66,11 +66,11 @@ UI_SCREENS = {
   -- Screen: Choosing control word
   [2] = {
     react = function()
-      if btnp(4) then
+      if btnp(0) or btnp(4) then
         cw_toggle(UI_SEL_CWORD, UI_SEL_CWORD_BIT)
       end
 
-      if btnp(6) then
+      if btnp(2) or btnp(6) then
         UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT - 1
 
         if UI_SEL_CWORD_BIT < 0 then
@@ -79,7 +79,7 @@ UI_SCREENS = {
         end
       end
 
-      if btnp(7) then
+      if btnp(3) or btnp(7) then
         UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT + 1
 
         if UI_SEL_CWORD_BIT > 7 then
@@ -132,7 +132,7 @@ function hud_render()
 
       if word_idx == UI_SEL_CWORD and bit_idx == UI_SEL_CWORD_BIT then
         bit_y = bit_y - 3
-        rect(bit_x, bit_y + 1.4 * CHR_HEIGHT, CHR_WIDTH, 1, 4)
+        rect(bit_x, bit_y + 1.5 * CHR_HEIGHT, CHR_WIDTH, 1, 4)
       end
 
       print(bit, bit_x, bit_y, bit_color, true, 2)
@@ -295,41 +295,26 @@ function ui_render()
   end
 end
 
-function print_corrupted(text, y, color)
-  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
-
-  for i = 1, #text do
-    local ch = text:sub(i, i)
-
-    print(ch, x, y, color, true)
-
-    for _ = 0,math.random(1,5) do
-      pix(
-              x + CHR_WIDTH / 2 + math.random(-8, 8),
-              y + math.random(-8, 12),
-              math.random(0, 15)
-      )
-    end
-
-    x = x + CHR_WIDTH
-  end
+function print_centered(text, y, color)
+  local x = (SCR_WIDTH - 0.6 * CHR_WIDTH * #text) / 2
+  print(text, x, y, color, true)
 end
 
 function print_wavy(text, y, color)
-  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
+  local x = (SCR_WIDTH - 0.7 * CHR_WIDTH * #text) / 2
 
   for i = 1, #text do
     local ch = text:sub(i, i)
 
     print(
-            ch,
-            x,
-            y + 3 * math.sin(i + time() / 150),
-            color,
-            true
+      ch,
+      x,
+      y + 3 * math.sin(i + time() / 150),
+      color,
+      true
     )
 
-    x = x + CHR_WIDTH
+    x = x + 0.7 * CHR_WIDTH
   end
 end
 
@@ -348,6 +333,18 @@ function TIC()
   end
 
   ui_render()
+end
+
+function SCN(line)
+  poke(0x3FF9, 0)
+
+  if UI_SCREEN == 1 then
+    if line < 30 then
+      if math.random() < 0.1 then
+        poke(0x3FF9, math.random(-8, 8))
+      end
+    end
+  end
 end
 
 -- <TILES>
