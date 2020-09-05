@@ -199,7 +199,7 @@ function hud_render()
     local pos_x = 35 + 50 * word_idx
     local pos_y = SCR_HEIGHT - 18
 
-    -- Underline currently selected byte
+    -- Underline currently selected word
     if word_idx == UI_SEL_CWORD then
       pos_y = pos_y - 5
       rect(pos_x, pos_y + CHR_HEIGHT * 1.5, 3 * CHR_WIDTH, 1, 4)
