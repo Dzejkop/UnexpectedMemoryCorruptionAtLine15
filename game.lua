@@ -8,7 +8,7 @@ SCR_WIDTH = 240
 SCR_HEIGHT = 136
 
 -- TIC-80 default font's char width, in pixels
-CHR_WIDTH = 7
+CHR_WIDTH = 10
 
 -- TIC-80 default font's char height, in pixels
 CHR_HEIGHT = 10
@@ -27,7 +27,6 @@ CWS = {
   [0] = cw(0, 0, 0, 0, 0, 0, 0, 1),
   [1] = cw(0, 0, 0, 0, 0, 0, 0, 0),
 }
-
 -- [/Control words]
 
 -- [Interface]
@@ -67,83 +66,35 @@ UI_SCREENS = {
   -- Screen: Choosing control word
   [2] = {
     react = function()
-      if btnp(2) then
-        UI_SEL_CWORD = (UI_SEL_CWORD - 1) % 4
-      end
-
-      if btnp(3) then
-        UI_SEL_CWORD = (UI_SEL_CWORD + 1) % 4
-      end
-
-      if btnp(4) then
-        ui_goto(3)
-      end
-    end,
-  },
-
-  -- Screen: Modifying control word
-  [3] = {
-    react = function()
-      if btnp(2) then
-        UI_SEL_CWORD_BIT = (UI_SEL_CWORD_BIT - 1) % 8
-      end
-
-      if btnp(3) then
-        UI_SEL_CWORD_BIT = (UI_SEL_CWORD_BIT + 1) % 8
-      end
-
       if btnp(4) then
         cw_toggle(UI_SEL_CWORD, UI_SEL_CWORD_BIT)
-        ui_goto(2)
       end
 
-      if btnp(5) then
-        ui_goto(2)
+      if btnp(6) then
+        UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT - 1
+
+        if UI_SEL_CWORD_BIT < 0 then
+          UI_SEL_CWORD_BIT = 7
+          UI_SEL_CWORD = (UI_SEL_CWORD - 1) % 2
+        end
+      end
+
+      if btnp(7) then
+        UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT + 1
+
+        if UI_SEL_CWORD_BIT > 7 then
+          UI_SEL_CWORD_BIT = 0
+          UI_SEL_CWORD = (UI_SEL_CWORD + 1) % 2
+        end
       end
     end,
-
-    render = function()
-      local modal_width = 180
-      local modal_height = 40
-      local modal_x = (SCR_WIDTH - modal_width) / 2
-      local modal_y = (SCR_HEIGHT - modal_height) / 3
-
-      rect(
-        modal_x,
-        modal_y,
-        modal_width,
-        modal_height,
-        15
-      )
-
-      for bit_idx = 0,7 do
-        local bit = cw_get(UI_SEL_CWORD, bit_idx) and 1 or 0
-        local bit_x = modal_x + 22 + 18 * bit_idx
-        local bit_y = modal_y + 15
-        local bit_color
-
-        if bit then
-          bit_color = 5
-        else
-          bit_color = 2
-        end
-
-        -- Underline currently selected bit
-        if bit_idx == UI_SEL_CWORD_BIT then
-          bit_y = bit_y - 5
-          rect(bit_x - 1, bit_y + 1.3 * CHR_HEIGHT, 1.8 * CHR_WIDTH, 1, 4)
-        end
-
-        print(bit, bit_x, bit_y, bit_color, true, 2)
-      end
-    end,
-  },
+  }
 }
 -- [/Interface]
 
------------------------
----- Control words ----
------------------------
+----------------------
+---- Control Word ----
+----------------------
 
 function cw_toggle(word_idx, bit_idx)
   bit_idx = 7 - bit_idx
@@ -155,68 +106,58 @@ function cw_get(word_idx, bit_idx)
   return CWS[word_idx] & (1 << bit_idx) > 0
 end
 
-function print_corrupted(text, y, color)
-  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
+-------------
+---- HUD ----
+-------------
 
-  for i = 1, #text do
-    local ch = text:sub(i, i)
+function hud_render()
+  local hud_h = 30
+  local hud_y = SCR_HEIGHT - hud_h
 
-    print(ch, x, y, color, true)
+  function cw_render(x, word_idx)
+    local y = hud_y + (hud_h - CHR_HEIGHT) / 2;
 
-    for _ = 0,math.random(1,5) do
-      pix(
-        x + CHR_WIDTH / 2 + math.random(-8, 8),
-        y + math.random(-8, 12),
-        math.random(0, 15)
-      )
+    for bit_idx = 0,7 do
+      local bit = cw_get(word_idx, bit_idx) and 1 or 0
+      local bit_color
+
+      if bit == 1 then
+        bit_color = 5
+      else
+        bit_color = 13
+      end
+
+      local bit_x = x
+      local bit_y = y
+
+      if word_idx == UI_SEL_CWORD and bit_idx == UI_SEL_CWORD_BIT then
+        bit_y = bit_y - 3
+        rect(bit_x, bit_y + 1.4 * CHR_HEIGHT, CHR_WIDTH, 1, 4)
+      end
+
+      print(bit, bit_x, bit_y, bit_color, true, 2)
+
+      x = x + CHR_WIDTH + 2
     end
-
-    x = x + CHR_WIDTH
   end
+
+  rect(0, hud_y, SCR_WIDTH, hud_h, 15)
+
+  cw_render(10, 0)
+  cw_render(SCR_WIDTH - 104, 1)
 end
 
-function print_wavy(text, y, color)
-  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
-
-  for i = 1, #text do
-    local ch = text:sub(i, i)
-
-    print(
-      ch,
-      x,
-      y + 3 * math.sin(i + time() / 150),
-      color,
-      true
-    )
-
-    x = x + CHR_WIDTH
-  end
-end
+---------------
+---- Board ----
+---------------
 
 function board_render()
   -- TODO
 end
 
-function hud_render()
-  function cw_render(word_idx)
-    local text = string.format("%.2X", CWS[word_idx])
-    local pos_x = 35 + 50 * word_idx
-    local pos_y = SCR_HEIGHT - 18
-
-    -- Underline currently selected word
-    if word_idx == UI_SEL_CWORD then
-      pos_y = pos_y - 5
-      rect(pos_x, pos_y + CHR_HEIGHT * 1.5, 3 * CHR_WIDTH, 1, 4)
-    end
-
-    print(text, pos_x, pos_y, 12, true, 2)
-  end
-
-  rect(0, SCR_HEIGHT - 29, SCR_WIDTH, SCR_HEIGHT, 15)
-
-  cw_render(0)
-  cw_render(1)
-end
+------------
+---- UI ----
+------------
 
 function ui_goto(state)
   UI_SCREEN = state
@@ -237,6 +178,48 @@ function ui_render()
     screen.render()
   end
 end
+
+function print_corrupted(text, y, color)
+  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
+
+  for i = 1, #text do
+    local ch = text:sub(i, i)
+
+    print(ch, x, y, color, true)
+
+    for _ = 0,math.random(1,5) do
+      pix(
+              x + CHR_WIDTH / 2 + math.random(-8, 8),
+              y + math.random(-8, 12),
+              math.random(0, 15)
+      )
+    end
+
+    x = x + CHR_WIDTH
+  end
+end
+
+function print_wavy(text, y, color)
+  local x = (SCR_WIDTH - CHR_WIDTH * #text) / 2
+
+  for i = 1, #text do
+    local ch = text:sub(i, i)
+
+    print(
+            ch,
+            x,
+            y + 3 * math.sin(i + time() / 150),
+            color,
+            true
+    )
+
+    x = x + CHR_WIDTH
+  end
+end
+
+----------------
+---- System ----
+----------------
 
 function TIC()
   cls()
