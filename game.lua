@@ -123,8 +123,6 @@ TESTS()
 -- 018:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
 -- 019:cacccccccaaaaaaacaaacaaacaaaaccccaaaaaaac8888888cc000cccecccccec
 -- 020:ccca00ccaaaa0ccecaaa0ceeaaaa0ceeaaaa0cee8888ccee000cceeecccceeee
--- 033:2200002220000002000000000000000000000000000000002000000222000022
--- 034:0000000000222000022222000222220002220200022220000000000000000000
 -- </TILES>
 
 -- <SPRITES>
