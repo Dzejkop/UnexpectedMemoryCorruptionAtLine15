@@ -45,8 +45,8 @@ UI_SCREENS = {
   [1] = {
     react = function()
       -- TODO <remove before deploying>
-      -- UI_SEL_CTRL_BYTE = 0
-      -- ui_goto(2)
+       UI_SEL_CWORD = 0
+       ui_goto(2)
       -- TODO </>
 
       for i = 0,31 do
@@ -141,14 +141,18 @@ UI_SCREENS = {
 }
 -- [/Interface]
 
+-----------------------
+---- Control words ----
+-----------------------
+
 function cw_toggle(word_idx, bit_idx)
   bit_idx = 7 - bit_idx
-  CWS[word_idx] = CWS[word_idx] | (1 << bit_idx)
+  CWS[word_idx] = CWS[word_idx] ~ (1 << bit_idx)
 end
 
 function cw_get(word_idx, bit_idx)
   bit_idx = 7 - bit_idx
-  return CWS[word_idx] | (1 << bit_idx) == 1
+  return CWS[word_idx] & (1 << bit_idx) > 0
 end
 
 function print_corrupted(text, y, color)
