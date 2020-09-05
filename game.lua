@@ -16,8 +16,8 @@ CHR_HEIGHT = 10
 ----------------
 -- GAME STATE --
 
--- <Control bytes>
--- Builds a control byte from separate bits, in big-endian order
+-- [Control bytes]
+-- Builds a control byte from separate bits, big-endian, MSG
 function cb(b0, b1, b2, b3, b4, b5, b6, b7)
   return b0 << 7 | b1 << 6 | b2 << 5 | b3 << 4
        | b4 << 3 | b5 << 2 | b6 << 1 | b7
@@ -32,16 +32,10 @@ CTRL = {
 
   -- Control byte B
   [1] = cb(0, 0, 0, 0, 0, 0, 0, 0),
-
-  -- Control byte C
-  [2] = cb(0, 0, 0, 0, 0, 0, 0, 0),
-
-  -- Control byte D
-  [3] = cb(0, 0, 0, 0, 0, 0, 0, 0),
 }
--- </Control bytes>
+-- [/Control bytes]
 
--- <Interface>
+-- [Interface]
 -- Index of currently active UI state; see `UI_STATES`
 UI_STATE = 1
 
@@ -152,7 +146,7 @@ UI_SEL_CTRL_BYTE = nil
 
 -- Index of currently selected control bit; 0..7
 UI_SEL_CTRL_BYTE_BIT = 0
--- </Interface>
+-- [/Interface]
 
 function cb_set(byte, bit_idx, bit_value)
   CTRL[byte] = 0xFF -- TODO
@@ -223,8 +217,6 @@ function hud_render()
 
   cb_render(0)
   cb_render(1)
-  cb_render(2)
-  cb_render(3)
 end
 
 function ui_goto(state)
