@@ -233,7 +233,8 @@ end
 ---- Enemies ----
 -----------------
 ENEMIES = {
-  LOST_SOUL = 1
+  LOST_SOUL = 1,
+  SPIDER = 2
 }
 
 enemies = {}
@@ -252,6 +253,9 @@ SPRITES = {
   },
   LOST_SOUL = {
     FLYING = 224,
+  },
+  SPIDER = {
+    LOWERING = 242
   }
 }
 
@@ -261,6 +265,10 @@ SPRITES = {
 STATES = {
   LOST_SOUL = {
     FLYING = 1
+  },
+  SPIDER = {
+    LOWERING = 1,
+    CLIMBING = 2
   }
 }
 
@@ -325,8 +333,25 @@ FLAGS = {
   IS_GROUND = 0
 }
 
+function spider_handler(obj)
+  if obj.state == STATES.SPIDER.LOWERING then
+    obj.pos.y = obj.pos.y + obj.vel.y
+    obj.current_len = obj.current_len + 1
+    if obj.current_len == obj.max_len then
+      obj.state = STATES.SPIDER.CRAWLING
+    end
+  elseif obj.state == STATES.SPIDER.CRAWLING then
+    obj.pos.y = obj.pos.y - obj.vel.y
+    obj.current_len = obj.current_len - 1
+    if obj.current_len == 0 then
+      obj.state = STATES.SPIDER.LOWERING
+    end
+  end
+  line(obj.pos.x + 8, obj.pos.y, obj.pos.x + 8, obj.string_attached_at, 12)
+end
+
 function lost_soul_handler(obj)
-  if obj.state == LOST_SOUL_FLYING then
+  if obj.state == STATES.LOST_SOUL.FLYING then
     obj.vel.x = obj.vel.x + obj.acc.x
     obj.pos.x = obj.pos.x + obj.vel.x
 
@@ -350,7 +375,7 @@ function game_init()
     vel = Vec.new(0, 0),
     max_vel = Vec.new(3, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
-    state = LOST_SOUL_FLYING,
+    state = STATES.LOST_SOUL.FLYING,
     handler = lost_soul_handler
   }
 
@@ -362,8 +387,23 @@ function game_init()
     vel = Vec.new(0, 0),
     max_vel = Vec.new(2.5, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
-    state = LOST_SOUL_FLYING,
+    state = STATES.LOST_SOUL.FLYING,
     handler = lost_soul_handler
+  }
+
+  enemies[3] = {
+    type = SPIDER,
+    state = STATES.SPIDER.LOWERING,
+    string_attached_at = 16,
+    pos = Vec.new(8*20, 16),
+    acc = Vec.new(0, 0),
+    vel = Vec.new(0, 0.5),
+    current_len = 0,
+    max_len = 8*6,
+    max_vel = 0,
+    current_sprite = SPRITES.SPIDER.LOWERING,
+    state = STATES.SPIDER.LOWERING,
+    handler = spider_handler
   }
 end
 
@@ -590,6 +630,8 @@ TESTS()
 -- 225:0000000044444400444444404444444044444440400044404000040044044400
 -- 240:0000444400004404000444440004444400000444000004040000040400000000
 -- 241:4444440004444400444444004444400044440000404040004040400000000000
+-- 242:0000000066000000006606660000666606660676000006660006600000600000
+-- 243:0000000000000066666066006766000066606660666000000006600000000600
 -- </TILES>
 
 -- <MAP>
