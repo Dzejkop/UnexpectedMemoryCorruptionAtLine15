@@ -39,102 +39,15 @@ CHR_HEIGHT = 6
 -- [Control words]
 --- Creates a new control word from given bits.
 --- Accepts bits in big-endian order.
-function cw(b0, b1, b2, b3, b4, b5, b6, b7)
-  return b0 << 7 | b1 << 6 | b2 << 5 | b3 << 4 | b4 << 3 | b5 << 2 | b6 << 1 | b7;
+function cw(b0, b1, b2, b3)
+  return b0 << 3 | b1 << 2 | b2 << 1 | b3
 end
 
 CWS = {
-  [0] = cw(0, 0, 0, 0, 0, 0, 0, 1),
-  [1] = cw(0, 0, 0, 0, 0, 0, 0, 0),
+  [0] = cw(1, 0, 0, 0),
+  [1] = cw(0, 0, 0, 0),
 }
 -- [/Control words]
-
--- [Interface]
--- Index of currently selected control word; 0..1 or `nil`
-UI_SEL_CWORD = nil
-
--- Index of currently selected control word's bit; 0..7
-UI_SEL_CWORD_BIT = 0
-
--- Index of currently active UI screen; see `UI_SCREENS`
-UI_SCREEN = 1
-
-SCREEN_TRANSITION = nil
-
-UI_SCREENS = {
-  -- Screen: Introduction
-  [1] = {
-    react = function()
-      -- TODO <remove before deploying>
-      -- UI_SEL_CWORD = 0
-      -- ui_goto(2)
-      -- TODO </>
-
-      for i = 0,31 do
-        if btnp(i) then
-          UI_SEL_CWORD = 0
-          ui_goto(2)
-        end
-      end
-    end,
-
-    render = function()
-      UiLabel:new()
-        :with_xy(0, 8)
-        :with_wh(SCR_WIDTH, SCR_HEIGHT)
-        :with_text("UNEXPECTED MEMORY CORRUPTION")
-        :with_color(10)
-        :with_letter_spacing(1.2)
-        :with_centered()
-        :render()
-
-      UiLabel:new()
-        :with_xy(0, 40)
-        :with_wh(SCR_WIDTH, SCR_HEIGHT)
-        :with_line("Use $1, $2 and $0 to move.\n")
-        :with_line("Use $3, $4 and $5 to modify control bits and change game's behavior.\n")
-        :with_line("Discover what each bit does, find your way out and have fun!")
-        :render()
-
-      UiLabel:new()
-        :with_xy(0, SCR_HEIGHT - 12)
-        :with_wh(SCR_WIDTH, SCR_HEIGHT)
-        :with_text("press any button to start")
-        :with_color(4)
-        :with_centered()
-        :with_wavy()
-        :render()
-    end,
-  },
-
-  -- Screen: Choosing control word
-  [2] = {
-    react = function()
-      if btnp(4) then
-        cw_toggle(UI_SEL_CWORD, UI_SEL_CWORD_BIT)
-      end
-
-      if btnp(6) then
-        UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT - 1
-
-        if UI_SEL_CWORD_BIT < 0 then
-          UI_SEL_CWORD_BIT = 7
-          UI_SEL_CWORD = (UI_SEL_CWORD - 1) % 2
-        end
-      end
-
-      if btnp(7) then
-        UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT + 1
-
-        if UI_SEL_CWORD_BIT > 7 then
-          UI_SEL_CWORD_BIT = 0
-          UI_SEL_CWORD = (UI_SEL_CWORD + 1) % 2
-        end
-      end
-    end,
-  }
-}
--- [/Interface]
 
 CURRENT_LEVEL = 1
 
@@ -161,7 +74,7 @@ function hud_render()
   local hud_y = SCR_HEIGHT - hud_h
 
   function cw_render(x, word_idx)
-    local y = hud_y + (hud_h - CHR_HEIGHT) / 2;
+    local y = hud_y + (hud_h - CHR_HEIGHT) / 2
 
     for bit_idx = 0,7 do
       local bit = cw_get(word_idx, bit_idx) and 1 or 0
@@ -176,14 +89,14 @@ function hud_render()
       local bit_x = x
       local bit_y = y
 
-      if word_idx == UI_SEL_CWORD and bit_idx == UI_SEL_CWORD_BIT then
+      if word_idx == UI.VARS.SEL_CWORD and bit_idx == UI.VARS.SEL_CWORD_BIT then
         bit_y = bit_y - 3
-        rect(bit_x, bit_y + 1.5 * CHR_HEIGHT, CHR_WIDTH, 1, 4)
+        rect(bit_x, bit_y + 2 * CHR_HEIGHT, 1.8 * CHR_WIDTH, 1, 4)
       end
 
       print(bit, bit_x, bit_y, bit_color, true, 2)
 
-      x = x + CHR_WIDTH + 2
+      x = x + 2 * CHR_WIDTH
     end
   end
 
@@ -607,8 +520,11 @@ function player_update()
   local player_occupied_tile = Player:collider_center():mul(1 / 8):floor()
   if fget(game_mget(player_occupied_tile), FLAGS.IS_WIN) then
     trace("VICTORY!!!!")
-    if not SCREEN_TRANSITION then
-      SCREEN_TRANSITION = create_transition(function () CURRENT_LEVEL = CURRENT_LEVEL + 1 end)
+
+    if not UI.TRANSITION then
+      UI.enter(function ()
+        CURRENT_LEVEL = CURRENT_LEVEL + 1
+      end)
     end
   end
 
@@ -648,29 +564,186 @@ end
 ---- UI ----
 ------------
 
-function ui_goto(state)
-  SCREEN_TRANSITION = create_transition(function ()
-    if state == 2 then
-      game_init()
+UI = {
+  -- Index of currently active UI screen; see `UI.SCREENS`
+  SCREEN = 1,
+
+  SCREENS = {
+    -- Screen: Introduction
+    [1] = {
+      update = function()
+        -- TODO <remove before deploying>
+        -- UI_SEL_CWORD = 0
+        -- ui_goto(2)
+        -- TODO </>
+
+        for i = 0,31 do
+          if btnp(i) then
+            UI.VARS.SEL_CWORD = 0
+            UI.enter(2)
+          end
+        end
+      end,
+
+      render = function()
+        UiLabel
+          :new()
+          :with_xy(0, 8)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_text("UNEXPECTED MEMORY CORRUPTION")
+          :with_color(10)
+          :with_letter_spacing(1.2)
+          :with_centered()
+          :render()
+
+        UiLabel
+          :new()
+          :with_xy(0, 40)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_line("Use $1, $2 and $0 to move.\n")
+          :with_line("Use $3, $4 and $5 to modify control bits and change game's behavior.\n")
+          :with_line("Discover what each bit does, find your way out and have fun!")
+          :render()
+
+        UiLabel
+          :new()
+          :with_xy(0, SCR_HEIGHT - 12)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_text("press any button to start")
+          :with_color(4)
+          :with_centered()
+          :with_wavy()
+          :render()
+      end,
+
+      scanline = function(line)
+        poke(0x3FF9, 0)
+
+        if line < 30 then
+          if math.random() < 0.1 then
+            poke(0x3FF9, math.random(-8, 8))
+          end
+        end
+      end,
+    },
+
+    -- Screen: Choosing control word
+    [2] = {
+      update = function()
+        if btnp(4) then
+          cw_toggle(UI.VARS.SEL_CWORD, UI.VARS.SEL_CWORD_BIT)
+        end
+
+        if btnp(6) then
+          UI.VARS.SEL_CWORD_BIT = UI.VARS.SEL_CWORD_BIT - 1
+
+          if UI.VARS.SEL_CWORD_BIT < 0 then
+            UI.VARS.SEL_CWORD_BIT = 7
+            UI.VARS.SEL_CWORD = (UI.VARS.SEL_CWORD - 1) % 2
+          end
+        end
+
+        if btnp(7) then
+          UI.VARS.SEL_CWORD_BIT = UI.VARS.SEL_CWORD_BIT + 1
+
+          if UI.VARS.SEL_CWORD_BIT > 7 then
+            UI.VARS.SEL_CWORD_BIT = 0
+            UI.VARS.SEL_CWORD = (UI.VARS.SEL_CWORD + 1) % 2
+          end
+        end
+      end,
+    },
+  },
+
+  -- Function that handles current screen transition, if any
+  TRANSITION = nil,
+
+  VARS = {
+    -- Index of currently selected control word; 0..1
+    SEL_CWORD = 0,
+
+    -- Index of currently selected control word's bit; 0..4
+    SEL_CWORD_BIT = 0,
+  }
+}
+
+function UI.enter(arg)
+  function create_transition(on_screen_blacked_out)
+    local completion = 0
+    local has_called_callback = false
+
+    return function()
+      if completion >= 2.0 then
+        return true
+      end
+
+      if completion >= 1.0 then
+        if not has_called_callback and on_screen_blacked_out then
+          on_screen_blacked_out()
+          has_called_callback = true
+        end
+      end
+
+      for x = 0,SCR_WIDTH do
+        for y = 0,SCR_HEIGHT do
+          if completion <= 1.0 then
+            if x < (completion * SCR_WIDTH) then
+              pix(x, y, 0)
+            end
+          else
+            if x > ((completion - 1.0) * SCR_WIDTH) then
+              pix(x, y, 0)
+            end
+          end
+        end
+      end
+
+      completion = completion + 0.05
     end
+  end
 
-    UI_SCREEN = state
-  end)
-end
+  if type(arg) == "number" then
+    local screen_idx = arg
 
-function ui_react()
-  local screen = UI_SCREENS[UI_SCREEN]
+    UI.TRANSITION = create_transition(function ()
+      if screen_idx == 2 then
+        game_init()
+      end
 
-  if screen.react then
-    screen.react()
+      UI.SCREEN = screen_idx
+    end)
+  else
+    UI.TRANSITION = create_transition(arg)
   end
 end
 
-function ui_render()
-  local screen = UI_SCREENS[UI_SCREEN]
+function UI.update()
+  local screen = UI.SCREENS[UI.SCREEN]
+
+  if screen.update then
+    screen.update()
+  end
+end
+
+function UI.render()
+  local screen = UI.SCREENS[UI.SCREEN]
 
   if screen.render then
     screen.render()
+  end
+
+  if UI.TRANSITION then
+    if UI.TRANSITION() then
+      UI.TRANSITION = nil
+    end
+  end
+end
+
+function UI.scanline(line)
+  local screen = UI.SCREENS[UI.SCREEN]
+
+  if screen.scanline then
+    screen.scanline(line)
   end
 end
 
@@ -874,71 +947,22 @@ end
 ---- System ----
 ----------------
 
-function create_transition(on_screen_blacked_out)
-  local completion = 0
-  local has_called_callback = false
-  return function()
-    if completion >= 2.0 then
-      return true
-    end
-
-    if completion >= 1.0 then
-      if not has_called_callback and on_screen_blacked_out then
-        on_screen_blacked_out()
-        has_called_callback = true
-      end
-    end
-
-    for x = 0,SCR_WIDTH do
-      for y = 0,SCR_HEIGHT do
-        if completion <= 1.0 then
-          if x < (completion * SCR_WIDTH) then
-            pix(x, y, 0)
-          end
-        else
-          if x > ((completion - 1.0) * SCR_WIDTH) then
-            pix(x, y, 0)
-          end
-        end
-      end
-    end
-
-    completion = completion + 0.05
-  end
-end
-
 function TIC()
-  ui_react()
+  UI.update()
 
   cls()
 
-  if UI_SCREEN > 1 then
+  if UI.SCREEN > 1 then
     game_render()
     game_update()
     hud_render()
   end
 
-  ui_render()
-
-  if SCREEN_TRANSITION then
-    if SCREEN_TRANSITION() then
-      SCREEN_TRANSITION = nil
-    else
-      return
-    end
-  end
+  UI.render()
 end
 
 function SCN(line)
-  poke(0x3FF9, 0)
-
-  if UI_SCREEN == 1 then
-    if line < 30 then
-      if math.random() < 0.1 then
-        poke(0x3FF9, math.random(-8, 8))
-      end
-    end
-  end
+  UI.scanline(line)
 end
 
 ---------------
