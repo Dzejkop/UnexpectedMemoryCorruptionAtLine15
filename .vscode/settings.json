@@ -10,6 +10,8 @@
         "spr",
         "btnp",
         "time",
-        "poke"
+        "poke",
+        "cls",
+        "pix"
     ]
 }

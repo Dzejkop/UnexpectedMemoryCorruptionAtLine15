@@ -59,6 +59,8 @@ UI_SEL_CWORD_BIT = 0
 -- Index of currently active UI screen; see `UI_SCREENS`
 UI_SCREEN = 1
 
+SCREEN_TRANSITION = nil
+
 UI_SCREENS = {
   -- Screen: Introduction
   [1] = {
@@ -582,7 +584,9 @@ function player_update()
   local player_occupied_tile = Player:collider_center():mul(1 / 8):floor()
   if fget(game_mget(player_occupied_tile), FLAGS.IS_WIN) then
     trace("VICTORY!!!!")
-    CURRENT_LEVEL = CURRENT_LEVEL + 1
+    if not SCREEN_TRANSITION then
+      SCREEN_TRANSITION = create_transition(function () CURRENT_LEVEL = CURRENT_LEVEL + 1 end)
+    end
   end
 
   -- Animations
@@ -622,10 +626,12 @@ end
 ------------
 
 function ui_goto(state)
-  if state == 2 then
-    game_init()
-  end
-  UI_SCREEN = state
+  SCREEN_TRANSITION = create_transition(function ()
+    if state == 2 then
+      game_init()
+    end
+    UI_SCREEN = state
+  end)
 end
 
 function ui_react()
@@ -671,9 +677,43 @@ end
 ---- System ----
 ----------------
 
+function create_transition(on_screen_blacked_out)
+  local completion = 0
+  local has_called_callback = false
+  return function()
+    if completion >= 2.0 then
+      return true
+    end
+
+    if completion >= 1.0 then
+      if not has_called_callback and on_screen_blacked_out then
+        on_screen_blacked_out()
+        has_called_callback = true
+      end
+    end
+
+    for x = 0,SCR_WIDTH do
+      for y = 0,SCR_HEIGHT do
+        if completion <= 1.0 then
+          if x < (completion * SCR_WIDTH) then
+            pix(x, y, 0)
+          end
+        else
+          if x > ((completion - 1.0) * SCR_WIDTH) then
+            pix(x, y, 0)
+          end
+        end
+      end
+    end
+
+    completion = completion + 0.05
+  end
+end
+
 function TIC()
-  cls()
   ui_react()
+
+  cls()
 
   if UI_SCREEN > 1 then
     game_render()
@@ -682,6 +722,14 @@ function TIC()
   end
 
   ui_render()
+
+  if SCREEN_TRANSITION then
+    if SCREEN_TRANSITION() then
+      SCREEN_TRANSITION = nil
+    else
+      return
+    end
+  end
 end
 
 function SCN(line)
