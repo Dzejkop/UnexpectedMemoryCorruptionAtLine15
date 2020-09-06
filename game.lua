@@ -327,11 +327,17 @@ FLAGS = {
 
 function lost_soul_handler(obj)
   if obj.state == LOST_SOUL_FLYING then
-    obj.vel.x = obj.vel.x + obj.acc
+    obj.vel.x = obj.vel.x + obj.acc.x
     obj.pos.x = obj.pos.x + obj.vel.x
+
+    obj.vel.y = obj.vel.y + obj.acc.y
+    obj.pos.y = obj.pos.y + obj.vel.y
   end
-  if obj.vel.x > obj.max_vel or obj.vel.x < -obj.max_vel then
-    obj.acc = -obj.acc
+  if obj.vel.x > obj.max_vel.x or obj.vel.x < -obj.max_vel.x then
+    obj.acc.x = -obj.acc.x
+  end
+  if obj.vel.y > obj.max_vel.y or obj.vel.y < -obj.max_vel.y then
+    obj.acc.y = -obj.acc.y
   end
 end
 
@@ -340,9 +346,9 @@ function game_init()
     type = LOST_SOUL,
     state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 32),
-    acc = 0.07,
+    acc = Vec.new(0.07, 0.2),
     vel = Vec.new(0, 0),
-    max_vel = 3,
+    max_vel = Vec.new(3, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
     state = LOST_SOUL_FLYING,
     handler = lost_soul_handler
@@ -352,9 +358,9 @@ function game_init()
     type = LOST_SOUL,
     state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 48),
-    acc = 0.02,
+    acc = Vec.new(0.02, 0.1),
     vel = Vec.new(0, 0),
-    max_vel = 2.5,
+    max_vel = Vec.new(2.5, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
     state = LOST_SOUL_FLYING,
     handler = lost_soul_handler
