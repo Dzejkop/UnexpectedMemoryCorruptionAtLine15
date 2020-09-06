@@ -1,3 +1,23 @@
+-------------------
+-- Debug helpers --
+-------------------
+-- to be removed
+function tprint (tbl, indent)
+  if not indent then indent = 0 end
+  for k, v in pairs(tbl) do
+    formatting = string.rep("  ", indent) .. k .. ": "
+    if type(v) == "table" then
+      print(formatting)
+      tprint(v, indent+1)
+    elseif type(v) == 'boolean' then
+      print(formatting .. tostring(v))      
+    else
+      print(formatting .. v)
+    end
+  end
+end
+
+
 ---------------
 -- CONSTANTS --
 
@@ -209,9 +229,18 @@ function Vec.trace(self, name)
   trace(name .. "{ x = " .. self.x .. ", y = " .. self.y .. " }")
 end
 
-----------------
----- Player ----
-----------------
+-----------------
+---- Enemies ----
+-----------------
+ENEMIES = {
+  LOST_SOUL = 1
+}
+
+enemies = {}
+
+-----------------
+---- Sprites ----
+-----------------
 
 SPRITES = {
   PLAYER = {
@@ -220,8 +249,24 @@ SPRITES = {
     RUN_1 = 6,
     RUN_2 = 8,
     IN_AIR = 10
+  },
+  LOST_SOUL = {
+    FLYING = 224,
   }
 }
+
+----------------------
+---- Enemy states ----
+----------------------
+STATES = {
+  LOST_SOUL = {
+    FLYING = 1
+  }
+}
+
+----------------
+---- Player ----
+----------------
 
 Player = {
   pos = Vec.new(30, 30),
@@ -280,6 +325,42 @@ FLAGS = {
   IS_GROUND = 0
 }
 
+function lost_soul_handler(obj)
+  if obj.state == LOST_SOUL_FLYING then
+    obj.vel.x = obj.vel.x + obj.acc
+    obj.pos.x = obj.pos.x + obj.vel.x
+  end
+  if obj.vel.x > obj.max_vel or obj.vel.x < -obj.max_vel then
+    obj.acc = -obj.acc
+  end
+end
+
+function game_init()
+  enemies[1] = {
+    type = LOST_SOUL,
+    state = STATES.LOST_SOUL.FLYING,
+    pos = Vec.new(10, 32),
+    acc = 0.07,
+    vel = Vec.new(0, 0),
+    max_vel = 3,
+    current_sprite = SPRITES.LOST_SOUL.FLYING,
+    state = LOST_SOUL_FLYING,
+    handler = lost_soul_handler
+  }
+
+  enemies[2] = {
+    type = LOST_SOUL,
+    state = STATES.LOST_SOUL.FLYING,
+    pos = Vec.new(10, 48),
+    acc = 0.02,
+    vel = Vec.new(0, 0),
+    max_vel = 2.5,
+    current_sprite = SPRITES.LOST_SOUL.FLYING,
+    state = LOST_SOUL_FLYING,
+    handler = lost_soul_handler
+  }
+end
+
 function find_tiles_below_collider()
   local collider_pos = Player.pos:add(Player.collider.offset)
   local below_left = collider_pos:add(Vec.down():mul(Player.collider.size.y))
@@ -292,6 +373,12 @@ function find_tiles_below_collider()
 end
 
 function game_update()
+  -- go through enemies
+  for i, v in ipairs(enemies) do
+    spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, 2)
+    v.handler(v)
+  end
+
   -- apply gravity
   if not Player.is_on_ground then
     Player.vel.y = Player.vel.y + 0.1
@@ -366,6 +453,9 @@ end
 ------------
 
 function ui_goto(state)
+  if state == 2 then
+    game_init()
+  end
   UI_SCREEN = state
 end
 
