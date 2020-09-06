@@ -1,23 +1,3 @@
--------------------
--- Debug helpers --
--------------------
--- to be removed
-function tprint (tbl, indent)
-  if not indent then indent = 0 end
-  for k, v in pairs(tbl) do
-    formatting = string.rep("  ", indent) .. k .. ": "
-    if type(v) == "table" then
-      print(formatting)
-      tprint(v, indent+1)
-    elseif type(v) == 'boolean' then
-      print(formatting .. tostring(v))
-    else
-      print(formatting .. v)
-    end
-  end
-end
-
-
 ---------------
 -- CONSTANTS --
 
@@ -36,75 +16,7 @@ CHR_HEIGHT = 6
 ----------------
 -- GAME STATE --
 
--- [Control words]
---- Creates a new control word from given bits.
---- Accepts bits in big-endian order.
-function cw(b0, b1, b2, b3)
-  return b0 << 3 | b1 << 2 | b2 << 1 | b3
-end
-
-CWS = {
-  [0] = cw(1, 0, 0, 0),
-  [1] = cw(0, 0, 0, 0),
-}
--- [/Control words]
-
 CURRENT_LEVEL = 1
-
-----------------------
----- Control Word ----
-----------------------
-
-function cw_toggle(word_idx, bit_idx)
-  bit_idx = 7 - bit_idx
-  CWS[word_idx] = CWS[word_idx] ~ (1 << bit_idx)
-end
-
-function cw_get(word_idx, bit_idx)
-  bit_idx = 7 - bit_idx
-  return CWS[word_idx] & (1 << bit_idx) > 0
-end
-
--------------
----- HUD ----
--------------
-
-function hud_render()
-  local hud_h = 24
-  local hud_y = SCR_HEIGHT - hud_h
-
-  function cw_render(x, word_idx)
-    local y = hud_y + (hud_h - CHR_HEIGHT) / 2
-
-    for bit_idx = 0,7 do
-      local bit = cw_get(word_idx, bit_idx) and 1 or 0
-      local bit_color
-
-      if bit == 1 then
-        bit_color = 5
-      else
-        bit_color = 13
-      end
-
-      local bit_x = x
-      local bit_y = y
-
-      if word_idx == UI.VARS.SEL_CWORD and bit_idx == UI.VARS.SEL_CWORD_BIT then
-        bit_y = bit_y - 3
-        rect(bit_x, bit_y + 2 * CHR_HEIGHT, 1.8 * CHR_WIDTH, 1, 4)
-      end
-
-      print(bit, bit_x, bit_y, bit_color, true, 2)
-
-      x = x + 2 * CHR_WIDTH
-    end
-  end
-
-  rect(0, hud_y, SCR_WIDTH, hud_h, 15)
-
-  cw_render(10, 0)
-  cw_render(SCR_WIDTH - 104, 1)
-end
 
 --------------
 ---- Math ----
@@ -188,6 +100,113 @@ end
 function Vec.trace(self, name)
   name = (name .. " = ") or ""
   trace(name .. "{ x = " .. self.x .. ", y = " .. self.y .. " }")
+end
+
+-------------------
+---- Iterators ----
+-------------------
+
+function iter(items)
+  local i = 1
+  return function()
+    local ret = items[i]
+    i = i + 1
+    return ret
+  end
+end
+
+function filter(items, predicate)
+  return function()
+    while true do
+      local item = items()
+
+      if item == nil then
+        return nil
+      else
+        if predicate(item) then
+          return item
+        end
+      end
+
+    end
+  end
+end
+
+----------------------
+---- Control Word ----
+----------------------
+
+CW = {
+  reg = 0
+}
+
+function CW.is_set(bit_idx)
+  bit_idx = 7 - bit_idx
+  return CW.reg & (1 << bit_idx) > 0
+end
+
+function CW.toggle(bit_idx)
+  bit_idx = 7 - bit_idx
+  CW.reg = CW.reg ~ (1 << bit_idx)
+end
+
+CW.toggle(0)
+
+-------------
+---- HUD ----
+-------------
+
+function hud_render()
+  local hud_h = 24
+  local hud_y = SCR_HEIGHT - hud_h
+
+  function render_background()
+    rect(0, hud_y, SCR_WIDTH, hud_h, 15)
+  end
+
+  function render_control_word_register()
+    -- Size of the blank space between control word groups
+    local blank_space_width = 40
+
+    local bit_x = (SCR_WIDTH - 8 * 2 * CHR_WIDTH - blank_space_width) / 2
+    local bit_y = hud_y + (hud_h - CHR_HEIGHT) / 2 - 3
+
+    for bit_idx = 0,7 do
+      if bit_idx == 4 then
+        bit_x = bit_x + blank_space_width
+      end
+
+      local bit = CW.is_set(bit_idx) and 1 or 0
+      local bit_color
+
+      if bit == 1 then
+        bit_color = 5
+      else
+        bit_color = 13
+      end
+
+      local bit_dy = 0
+
+      if bit_idx == UI.VARS.SEL_CWORD_BIT then
+        bit_dy = -2
+
+        -- The character for `1` is somewhat visibly shorter, so our underline
+        -- has to account for that
+        if bit == 1 then
+          rect(bit_x + 1, bit_y + 12, 10, 1, 4)
+        else
+          rect(bit_x - 1, bit_y + 12, 12, 1, 4)
+        end
+      end
+
+      print(bit, bit_x, bit_y + bit_dy, bit_color, true, 2)
+
+      bit_x = bit_x + 2 * CHR_WIDTH
+    end
+  end
+
+  render_background()
+  render_control_word_register()
 end
 
 -----------------
@@ -308,36 +327,6 @@ LEVELS = {
 
 function LEVELS.current_offset()
   return LEVELS[CURRENT_LEVEL].map_offset
-end
-
--------------------
----- Iterators ----
--------------------
-
-function iter(items)
-  local i = 1
-  return function()
-    local ret = items[i]
-    i = i + 1
-    return ret
-  end
-end
-
-function filter(items, predicate)
-  return function()
-    while true do
-      local item = items()
-
-      if item == nil then
-        return nil
-      else
-        if predicate(item) then
-          return item
-        end
-      end
-
-    end
-  end
 end
 
 ---------------
@@ -500,7 +489,7 @@ function player_update()
   end
 
   -- check for collisions to the sides
-  if cw_get(0, 0) then
+  if CW.is_set(0) then
     local tiles_to_the_right_of_player = find_tiles_in_front_of_player()
 
     local tile_to_the_right_of_player = filter(iter(tiles_to_the_right_of_player), is_tile_ground)()
@@ -572,14 +561,8 @@ UI = {
     -- Screen: Introduction
     [1] = {
       update = function()
-        -- TODO <remove before deploying>
-        -- UI_SEL_CWORD = 0
-        -- ui_goto(2)
-        -- TODO </>
-
         for i = 0,31 do
           if btnp(i) then
-            UI.VARS.SEL_CWORD = 0
             UI.enter(2)
           end
         end
@@ -627,29 +610,19 @@ UI = {
       end,
     },
 
-    -- Screen: Choosing control word
+    -- Screen: Game
     [2] = {
       update = function()
         if btnp(4) then
-          cw_toggle(UI.VARS.SEL_CWORD, UI.VARS.SEL_CWORD_BIT)
+          CW.toggle(UI.VARS.SEL_CWORD_BIT)
         end
 
         if btnp(6) then
-          UI.VARS.SEL_CWORD_BIT = UI.VARS.SEL_CWORD_BIT - 1
-
-          if UI.VARS.SEL_CWORD_BIT < 0 then
-            UI.VARS.SEL_CWORD_BIT = 7
-            UI.VARS.SEL_CWORD = (UI.VARS.SEL_CWORD - 1) % 2
-          end
+          UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT - 1) % 8
         end
 
         if btnp(7) then
-          UI.VARS.SEL_CWORD_BIT = UI.VARS.SEL_CWORD_BIT + 1
-
-          if UI.VARS.SEL_CWORD_BIT > 7 then
-            UI.VARS.SEL_CWORD_BIT = 0
-            UI.VARS.SEL_CWORD = (UI.VARS.SEL_CWORD + 1) % 2
-          end
+          UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT + 1) % 8
         end
       end,
     },
@@ -659,9 +632,6 @@ UI = {
   TRANSITION = nil,
 
   VARS = {
-    -- Index of currently selected control word; 0..1
-    SEL_CWORD = 0,
-
     -- Index of currently selected control word's bit; 0..4
     SEL_CWORD_BIT = 0,
   }
@@ -963,6 +933,25 @@ end
 
 function SCN(line)
   UI.scanline(line)
+end
+
+-------------------
+-- Debug helpers --
+-------------------
+-- TODO remove before deploying
+function tprint (tbl, indent)
+  if not indent then indent = 0 end
+  for k, v in pairs(tbl) do
+    formatting = string.rep("  ", indent) .. k .. ": "
+    if type(v) == "table" then
+      print(formatting)
+      tprint(v, indent+1)
+    elseif type(v) == 'boolean' then
+      print(formatting .. tostring(v))
+    else
+      print(formatting .. v)
+    end
+  end
 end
 
 ---------------
