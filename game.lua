@@ -10,7 +10,7 @@ function tprint (tbl, indent)
       print(formatting)
       tprint(v, indent+1)
     elseif type(v) == 'boolean' then
-      print(formatting .. tostring(v))      
+      print(formatting .. tostring(v))
     else
       print(formatting .. v)
     end
@@ -192,6 +192,10 @@ function Vec.new(x, y)
   return v
 end
 
+function Vec.one()
+  return Vec.new(1, 1)
+end
+
 function Vec.zero()
   return Vec.new(0, 0)
 end
@@ -222,6 +226,23 @@ end
 
 function Vec.floor(self)
   return Vec.new(math.floor(self.x), math.floor(self.y))
+end
+
+function Vec.x_vec(self)
+  return Vec.new(self.x, 0)
+end
+
+function Vec.y_vec(self)
+  return Vec.new(0, self.y)
+end
+
+function Vec.len(self)
+  return math.sqrt(math.pow(self.x, 2) + math.pow(self.y, 2))
+end
+
+function Vec.normalized(self)
+  local len = self:len()
+  return Vec.new(self.x / len, self.y / len)
 end
 
 function Vec.trace(self, name)
@@ -287,6 +308,40 @@ Player = {
   },
   is_on_ground = false
 }
+
+function Player.collider_center(self)
+  return self.pos
+    :add(self.collider.offset)
+    :add(self.collider.size:mul(1 / 2))
+end
+
+function Player.collider_bottom_right(self)
+  return self.pos
+    :add(self.collider.offset)
+    :add(self.collider.size)
+end
+
+function Player.collider_bottom_left(self)
+  return self.pos
+    :add(self.collider.offset)
+    :add(Vec.down():mul(self.collider.size.y))
+end
+
+function Player.collider_top_right(self)
+  return self.pos
+    :add(self.collider.offset)
+    :add(Vec.right():mul(self.collider.size.x))
+end
+
+function Player.turn(self)
+  if self.vel.x > 0.1 then
+    return 1
+  elseif self.vel.x < -0.1 then
+    return -1
+  else
+    return 0
+  end
+end
 
 -------------------
 ---- Iterators ----
@@ -408,14 +463,27 @@ function game_init()
 end
 
 function find_tiles_below_collider()
-  local collider_pos = Player.pos:add(Player.collider.offset)
-  local below_left = collider_pos:add(Vec.down():mul(Player.collider.size.y))
-  local below_right = collider_pos:add(Player.collider.size)
+  local below_left = Player:collider_bottom_left()
+    :mul(1 / 8)
+    :floor()
 
-  below_left = below_left:mul(1 / 8):floor()
-  below_right = below_right:mul(1 / 8):floor()
+  below_left:trace("below_left")
 
-  return { below_left, below_right } -- NOTE: both could be the same tile
+  local below_right = Player:collider_bottom_right()
+    :mul(1 / 8)
+    :floor()
+
+  below_right:trace("below_right")
+
+  return { below_left, below_right }
+end
+
+function find_tiles_in_front_of_player()
+  local forward = Player:collider_center()
+    :mul(1 / 8)
+    :add(Player.vel:x_vec():normalized())
+
+  return { forward }
 end
 
 function game_update()
@@ -455,6 +523,15 @@ function game_update()
     end
   elseif Player.is_on_ground then
     Player.is_on_ground = false
+  end
+
+  -- check for collisions to the sides
+  local tiles_to_the_right_of_player = find_tiles_in_front_of_player()
+
+  local tile_to_the_right_of_player = filter(iter(tiles_to_the_right_of_player), is_tile_ground)()
+
+  if math.abs(Player.vel.x) > 0 and tile_to_the_right_of_player ~= nil then
+    Player.vel.x = 0
   end
 
   -- jump
@@ -601,8 +678,8 @@ TESTS()
 -- 007:0000000000000000000000007777770000000700000007002000070002000700
 -- 008:0000000000000700000007000007777700770000007702020077020000770200
 -- 009:0000000000000000000000007777770000000700000007002000070002000700
--- 010:0000070000000700000777770077000000770202007702000077020000770200
--- 011:0000000000000000777777000000070000000700200007000200070020000700
+-- 010:0000040000000400000444440044000000440202004402000044020000440200
+-- 011:0000000000000000444444000000040000000400200004000200040020000400
 -- 018:0099020000990202009900000009999900009990000099000000900000009900
 -- 019:2000090000000900000009009999990000099900000990000009000000099000
 -- 020:0099020000990200009902020099000000099999000099900000900000009900
@@ -611,8 +688,8 @@ TESTS()
 -- 023:2000070000000700000007007777770000077700000770000007000000077000
 -- 024:0077020000770202007700000007777700007770000077000000700000007700
 -- 025:2000070000000700000007007777770000077000000700000007700000000000
--- 026:0077020200770000000777770000770000007000000070000000700000000000
--- 027:0000070000000700777777000007700000070000000700000007000000000000
+-- 026:0044020200440000000444440000440000004000000040000000400000000000
+-- 027:0000040000000400444444000004400000040000000400000004000000000000
 -- 033:3333333332222221322222213222222132222221322222213222222111111111
 -- 034:5555555556666667566666675666666756666667566666675666666777777777
 -- 035:aaaaaaaaa9999998a9999998a9999998a9999998a9999998a999999888888888
