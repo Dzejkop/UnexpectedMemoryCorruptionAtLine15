@@ -362,6 +362,14 @@ function spider_handler(obj)
   line(obj.pos.x + 8, obj.pos.y, obj.pos.x + 8, obj.string_attached_at, 12)
 end
 
+function enemy_type_to_height(type)
+  if type == ENEMIES.LOST_SOUL then
+    return 2
+  elseif type == ENEMIES.SPIDER then
+    return 1
+  end
+end
+
 function lost_soul_handler(obj)
   if obj.state == STATES.LOST_SOUL.FLYING then
     obj.vel.x = obj.vel.x + obj.acc.x
@@ -380,7 +388,7 @@ end
 
 function game_init()
   enemies[1] = {
-    type = LOST_SOUL,
+    type = ENEMIES.LOST_SOUL,
     state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 32),
     acc = Vec.new(0.07, 0.2),
@@ -392,7 +400,7 @@ function game_init()
   }
 
   enemies[2] = {
-    type = LOST_SOUL,
+    type = ENEMIES.LOST_SOUL,
     state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 48),
     acc = Vec.new(0.02, 0.1),
@@ -404,7 +412,7 @@ function game_init()
   }
 
   enemies[3] = {
-    type = SPIDER,
+    type = ENEMIES.SPIDER,
     state = STATES.SPIDER.LOWERING,
     string_attached_at = 16,
     pos = Vec.new(8*20, 16),
@@ -442,7 +450,7 @@ end
 function game_update()
   -- go through enemies
   for i, v in ipairs(enemies) do
-    spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, 2)
+    spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(v.type))
     v.handler(v)
   end
 
