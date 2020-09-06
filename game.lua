@@ -28,10 +28,10 @@ SCR_WIDTH = 240
 SCR_HEIGHT = 136
 
 -- TIC-80 default font's char width, in pixels
-CHR_WIDTH = 10
+CHR_WIDTH = 6
 
 -- TIC-80 default font's char height, in pixels
-CHR_HEIGHT = 10
+CHR_HEIGHT = 6
 
 ----------------
 -- GAME STATE --
@@ -69,6 +69,7 @@ UI_SCREENS = {
       -- UI_SEL_CWORD = 0
       -- ui_goto(2)
       -- TODO </>
+
       for i = 0,31 do
         if btnp(i) then
           UI_SEL_CWORD = 0
@@ -78,9 +79,31 @@ UI_SCREENS = {
     end,
 
     render = function()
-      print_centered("UNEXPECTED MEMORY CORRUPTION", 10, 10)
-      print("Rules are simple:\nblah blah\nblah blah blah", 0, 40, 12)
-      print_wavy("Press any key to start", SCR_HEIGHT - 15, 4)
+      UiLabel:new()
+        :with_xy(0, 8)
+        :with_wh(SCR_WIDTH, SCR_HEIGHT)
+        :with_text("UNEXPECTED MEMORY CORRUPTION")
+        :with_color(10)
+        :with_letter_spacing(1.2)
+        :with_centered()
+        :render()
+
+      UiLabel:new()
+        :with_xy(0, 40)
+        :with_wh(SCR_WIDTH, SCR_HEIGHT)
+        :with_line("Use $1, $2 and $0 to move.\n")
+        :with_line("Use $3, $4 and $5 to modify control bits and change game's behavior.\n")
+        :with_line("Discover what each bit does, find your way out and have fun!")
+        :render()
+
+      UiLabel:new()
+        :with_xy(0, SCR_HEIGHT - 12)
+        :with_wh(SCR_WIDTH, SCR_HEIGHT)
+        :with_text("press any button to start")
+        :with_color(4)
+        :with_centered()
+        :with_wavy()
+        :render()
     end,
   },
 
@@ -630,6 +653,7 @@ function ui_goto(state)
     if state == 2 then
       game_init()
     end
+
     UI_SCREEN = state
   end)
 end
@@ -650,27 +674,200 @@ function ui_render()
   end
 end
 
-function print_centered(text, y, color)
-  local x = (SCR_WIDTH - 0.6 * CHR_WIDTH * #text) / 2
-  print(text, x, y, color, true)
+-------------
+-- UiLabel --
+
+UiLabel = {}
+UiLabel.__index = UiLabel
+
+function UiLabel:new()
+  return setmetatable({
+    xy = Vec.new(0, 0),
+    wh = nil,
+    text = "",
+    color = 12,
+    letter_spacing = 0,
+    centered = false,
+    wavy = false,
+  }, UiLabel)
 end
 
-function print_wavy(text, y, color)
-  local x = (SCR_WIDTH - 0.7 * CHR_WIDTH * #text) / 2
+function UiLabel:with_xy(x, y)
+  self.xy = Vec.new(x, y)
+  return self
+end
 
-  for i = 1, #text do
-    local ch = text:sub(i, i)
+function UiLabel:with_wh(w, h)
+  self.wh = Vec.new(w, h)
+  return self
+end
 
-    print(
-      ch,
-      x,
-      y + 3 * math.sin(i + time() / 150),
-      color,
-      true
-    )
+function UiLabel:with_text(text)
+  self.text = self.text .. text
+  return self
+end
 
-    x = x + 0.7 * CHR_WIDTH
+function UiLabel:with_line(line)
+  return self:with_text(line .. "\n")
+end
+
+function UiLabel:with_color(color)
+  self.color = color
+  return self
+end
+
+function UiLabel:with_letter_spacing(letter_spacing)
+  self.letter_spacing = letter_spacing
+  return self
+end
+
+function UiLabel:with_centered()
+  self.centered = true
+  return self
+end
+
+function UiLabel:with_wavy()
+  self.wavy = true
+  return self
+end
+
+function UiLabel:render()
+  local bb = self:_bounding_box()
+
+  -- Caret's X position, in pixels
+  local cx = bb.tl.x
+
+  -- Caret's Y position, in pixels
+  local cy = bb.tl.y
+
+  function inc_cy()
+    cy = cy + CHR_HEIGHT + 2
+    cx = bb.tl.x
   end
+
+  function inc_cx(delta)
+    cx = cx + delta
+
+    if bb.br then
+      if cx >= bb.br.x then
+        inc_cy()
+      end
+    end
+  end
+
+  local i = 0
+
+  while i < #self.text do
+    i = i + 1
+
+    local prev_ch2 = self.text:sub(i - 2, i - 2)
+    local prev_ch = self.text:sub(i - 1, i - 1)
+    local ch = self.text:sub(i, i)
+
+    -- Adjust to character's kerning
+    cx = cx + self._kerning(prev_ch2, prev_ch, ch)
+
+    if ch == '\n' then
+      -- Special syntax: \n forces new line
+      inc_cy()
+    elseif ch == '$' then
+      -- Special syntax: $<num> renders sprite with specified id
+
+      -- Skip `$`
+      i = i + 1
+
+      -- Read sprite's number
+      ch = self.text:sub(i, i)
+
+      -- Render sprite
+      spr(256 + tonumber(ch), cx - 3, cy - 1)
+
+      inc_cx(7)
+    else
+      local dy = 0
+
+      if self.wavy then
+        dy = 3 * math.sin(i + time() / 150)
+      end
+
+      -- If printing current character would overflow our label's bounding box,
+      -- automatically move on to the next line
+      if bb.br then
+        if cx + CHR_WIDTH >= bb.br.x then
+          inc_cy()
+        end
+      end
+
+      print(ch, cx, cy + dy, self.color, true)
+
+      inc_cx(CHR_WIDTH + self.letter_spacing)
+    end
+  end
+end
+
+--- Returns delta-x that adjusts for given character's kerning
+function UiLabel._kerning(prev_ch2, prev_ch, ch)
+  -- Upper-cases
+  if ch == 'I' or ch == 'T' or ch == 'Y' then
+    return -1
+  end
+
+  -- Lower-cases
+  if prev_ch == 'i' or ch == 'l' then
+    return -1
+  end
+
+  if ch == 'i' then
+    return -2
+  end
+
+  -- Miscellaneous
+  if prev_ch2 == '$' and ch ~= ',' then
+    return -4
+  end
+
+  if ch == '!' then
+    return -1
+  end
+
+  if prev_ch == ',' then
+    return -2
+  end
+
+  return 0
+end
+
+function UiLabel:_bounding_box()
+  local bb = {
+    -- Label's top-left corner
+    tl = self.xy,
+  }
+
+  if self.centered then
+    local actual_width = 0
+
+    for i = 1, #self.text do
+      local prev_ch2 = self.text:sub(i - 2, i - 2)
+      local prev_ch = self.text:sub(i - 1, i - 1)
+      local ch = self.text:sub(i, i)
+
+      actual_width =
+        actual_width
+        + CHR_WIDTH
+        + self._kerning(prev_ch2, prev_ch, ch)
+        + self.letter_spacing
+    end
+
+    bb.tl.x = bb.tl.x + (self.wh.x - actual_width) / 2
+  end
+
+  -- If label's supposed to be constrained in a box, calculate label's
+  -- bottom-right corner too
+  if self.wh then
+    bb.br = bb.tl:add(self.wh)
+  end
+
+  return bb
 end
 
 ----------------
@@ -809,6 +1006,15 @@ TESTS()
 -- 242:0000000066000000006606660000666606660676000006660006600000600000
 -- 243:0000000000000066666066006766000066606660666000000006600000000600
 -- </TILES>
+
+-- <SPRITES>
+-- 000:eeeeeee0eeeceeefeeccceefecececefeeeceeefeeeceeefeeeeeeef0fffffff
+-- 001:eeeeeee0eeeceeefeeceeeefecccccefeeceeeefeeeceeefeeeeeeef0fffffff
+-- 002:eeeeeee0eeeceeefeeeeceefecccccefeeeeceefeeeceeefeeeeeeef0fffffff
+-- 003:eeeeeee0eeccceefeceeecefecccccefeceeecefeceeecefeeeeeeef0fffffff
+-- 004:eeeeeee0eeecccefeeceeeefeeeceeefeeeeceefeccceeefeeeeeeef0fffffff
+-- 005:eeeeeee0ecccccefeeeeceefeeeceeefeeceeeefecccccefeeeeeeef0fffffff
+-- </SPRITES>
 
 -- <MAP>
 -- 001:323222323232323232323232323232323232323232323232323232323232121212121212121212121212121212121212121212121212121212121212000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
