@@ -85,11 +85,11 @@ UI_SCREENS = {
   -- Screen: Choosing control word
   [2] = {
     react = function()
-      if btnp(0) or btnp(4) then
+      if btnp(4) then
         cw_toggle(UI_SEL_CWORD, UI_SEL_CWORD_BIT)
       end
 
-      if btnp(2) or btnp(6) then
+      if btnp(6) then
         UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT - 1
 
         if UI_SEL_CWORD_BIT < 0 then
@@ -98,7 +98,7 @@ UI_SCREENS = {
         end
       end
 
-      if btnp(3) or btnp(7) then
+      if btnp(7) then
         UI_SEL_CWORD_BIT = UI_SEL_CWORD_BIT + 1
 
         if UI_SEL_CWORD_BIT > 7 then
