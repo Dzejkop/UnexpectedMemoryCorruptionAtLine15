@@ -229,7 +229,8 @@ SPRITES = {
     IDLE_2 = 4,
     RUN_1 = 6,
     RUN_2 = 8,
-    IN_AIR = 10
+    IN_AIR = 10,
+    DEAD = 12
   },
   LOST_SOUL = {
     FLYING = 224,
@@ -257,7 +258,7 @@ STATES = {
 ----------------
 
 Player = {
-  pos = Vec.new(30, 30),
+  pos = Vec.new(30, 8*10),
   vel = Vec.new(0, 0),
   current_sprite = SPRITES.PLAYER.IDLE,
   speed = 1,
@@ -265,7 +266,8 @@ Player = {
     offset = Vec.new(2, 3),
     size = Vec.new(11, 13)
   },
-  is_on_ground = false
+  is_on_ground = false,
+  is_dead = false
 }
 
 function Player.collider_center(self)
@@ -370,6 +372,14 @@ function enemy_type_to_height(type)
   end
 end
 
+function enemy_type_to_collision_radius(type)
+  if type == ENEMIES.LOST_SOUL then
+    return 12
+  elseif type == ENEMIES.SPIDER then
+    return 8
+  end
+end
+
 function lost_soul_handler(obj)
   if obj.state == STATES.LOST_SOUL.FLYING then
     obj.vel.x = obj.vel.x + obj.acc.x
@@ -419,7 +429,7 @@ function game_init()
     acc = Vec.new(0, 0),
     vel = Vec.new(0, 0.5),
     current_len = 0,
-    max_len = 8*6,
+    max_len = 8*7,
     max_vel = 0,
     current_sprite = SPRITES.SPIDER.LOWERING,
     state = STATES.SPIDER.LOWERING,
@@ -452,6 +462,17 @@ function game_update()
   for i, v in ipairs(enemies) do
     spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(v.type))
     v.handler(v)
+
+    -- check collision with player
+    x1 = v.pos.x
+    y1 = v.pos.y
+    x2 = Player.pos.x
+    y2 = Player.pos.y
+    distance = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
+    if distance < enemy_type_to_collision_radius(v.type) then
+      Player.is_dead = true
+      Player.current_sprite = SPRITES.PLAYER.DEAD
+    end
   end
 
   if Player then player_update() end
@@ -467,14 +488,6 @@ function player_update()
   -- apply gravity
   if not Player.is_on_ground then
     Player.vel.y = Player.vel.y + 0.1
-  end
-
-  if btn(BUTTONS.RIGHT) then
-    Player.vel.x = math.clamp(Player.vel.x + 0.1, -Player.speed, Player.speed)
-  elseif btn(BUTTONS.LEFT) then
-    Player.vel.x = math.clamp(Player.vel.x - 0.1, -Player.speed, Player.speed)
-  else
-    Player.vel.x = Player.vel.x * 0.7
   end
 
   -- Check for collisions with floor
@@ -496,6 +509,16 @@ function player_update()
     Player.is_on_ground = false
   end
 
+  if not Player.is_dead then 
+    if btn(BUTTONS.RIGHT) then
+      Player.vel.x = math.clamp(Player.vel.x + 0.1, -Player.speed, Player.speed)
+    elseif btn(BUTTONS.LEFT) then
+      Player.vel.x = math.clamp(Player.vel.x - 0.1, -Player.speed, Player.speed)
+    else
+      Player.vel.x = Player.vel.x * 0.7
+    end
+  end
+
   -- check for collisions to the sides
   if CW.is_set(0) then
     local tiles_to_the_right_of_player = find_tiles_in_front_of_player()
@@ -508,9 +531,11 @@ function player_update()
   end
 
   -- jump
-  if Player.is_on_ground and btnp(BUTTONS.UP) then
-    Player.vel = Player.vel:add(Vec:up():mul(2))
-    Player.is_on_ground = false
+  if not Player.is_dead then
+    if Player.is_on_ground and btnp(BUTTONS.UP) then
+      Player.vel = Player.vel:add(Vec:up():mul(2))
+      Player.is_on_ground = false
+    end
   end
 
   -- Check is colliding with flag
@@ -526,19 +551,21 @@ function player_update()
   end
 
   -- Animations
-  if not Player.is_on_ground then
-    Player.current_sprite = SPRITES.PLAYER.IN_AIR
-  elseif math.abs(Player.vel.x) > 0.01 then
-    if math.floor(time() * 0.01) % 2 == 0 then
-      Player.current_sprite = SPRITES.PLAYER.RUN_1
+  if not Player.is_dead then
+    if not Player.is_on_ground then
+      Player.current_sprite = SPRITES.PLAYER.IN_AIR
+    elseif math.abs(Player.vel.x) > 0.01 then
+      if math.floor(time() * 0.01) % 2 == 0 then
+        Player.current_sprite = SPRITES.PLAYER.RUN_1
+      else
+        Player.current_sprite = SPRITES.PLAYER.RUN_2
+      end
     else
-      Player.current_sprite = SPRITES.PLAYER.RUN_2
-    end
-  else
-    if math.floor(time() * 0.001) % 2 == 0 then
-      Player.current_sprite = SPRITES.PLAYER.IDLE_1
-    else
-      Player.current_sprite = SPRITES.PLAYER.IDLE_2
+      if math.floor(time() * 0.001) % 2 == 0 then
+        Player.current_sprite = SPRITES.PLAYER.IDLE_1
+      else
+        Player.current_sprite = SPRITES.PLAYER.IDLE_2
+      end
     end
   end
 
@@ -551,7 +578,7 @@ function game_render()
 
   -- needs to be made persistent between frames
   local flip = 0
-  if Player.vel.x < -0.01 then
+  if Player.vel.x < -0.01 and not Player.is_dead then
     flip = 1
   end
   spr(Player.current_sprite, Player.pos.x, Player.pos.y, 0, 1, flip, 0, 2, 2)
@@ -992,6 +1019,8 @@ TESTS()
 -- 009:0000000000000000000000007777770000000700000007002000070002000700
 -- 010:0000040000000400000444440044000000440202004402000044020000440200
 -- 011:0000000000000000444444000000040000000400200004000200040020000400
+-- 012:0000eeee000eeeee00eeeeee00eeeeee0eeeeeee0ee000e0eee0e0e0eee000e0
+-- 013:eeee0000eeeee000eeeeee00eeeeee00eeeeeee0e000eee0e0e0eeeee000eeee
 -- 018:0099020000990202009900000009999900009990000099000000900000009900
 -- 019:2000090000000900000009009999990000099900000990000009000000099000
 -- 020:0099020000990200009902020099000000099999000099900000900000009900
@@ -1002,6 +1031,8 @@ TESTS()
 -- 025:2000070000000700000007007777770000077000000700000007700000000000
 -- 026:0044020200440000000444440000440000004000000040000000400000000000
 -- 027:0000040000000400444444000004400000040000000400000004000000000000
+-- 028:eee00ee0eee0e0e0eee0e0e0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+-- 029:e0eeeeeee0eeeeeee0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 -- 033:3333333332222221322222213222222132222221322222213222222111111111
 -- 034:5555555556666667566666675666666756666667566666675666666777777777
 -- 035:aaaaaaaaa9999998a9999998a9999998a9999998a9999998a999999888888888
