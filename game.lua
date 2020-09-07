@@ -249,7 +249,7 @@ function enemy_type_to_collision_radius(type)
   if type == ENEMIES.LOST_SOUL then
     return 12
   elseif type == ENEMIES.SPIDER then
-    return 8
+    return 9
   end
 end
 
