@@ -16,7 +16,8 @@ CHR_HEIGHT = 6
 local BITS = {
   COLLISION = 7,
   GRAVITY = 6,
-  DISENGAGE_MALEVOLENT_ORGANISM = 5
+  DISENGAGE_MALEVOLENT_ORGANISM = 5,
+  SLOW_MOTION = 4
 }
 
 local TRACKS = {
@@ -1329,6 +1330,7 @@ end
 T = seconds()
 
 TIMESCALE = 1.0
+SLOW_MOTION_TIMESCALE = 0.2
 
 function TIC()
   local delta = seconds() - T
@@ -1338,9 +1340,14 @@ function TIC()
 
   cls()
 
+  local timescale = TIMESCALE
+  if CW.is_set(BITS.SLOW_MOTION) then
+    timescale = SLOW_MOTION_TIMESCALE
+  end
+
   if UI.SCREEN > 1 then
     game_render()
-    game_update(delta * TIMESCALE)
+    game_update(delta * timescale)
     hud_render()
   end
 
