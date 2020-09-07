@@ -557,6 +557,7 @@ function game_update(delta)
     distance = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
     if distance < enemy_type_to_collision_radius(v.type) then
       if not Player.is_dead then
+        AUDIO.play_note(1, "C#3", 64, 10)
         Player.is_dead = true
         Player.current_sprite = SPRITES.PLAYER.DEAD
       end
@@ -1340,10 +1341,12 @@ TESTS()
 -- 000:00000000ffffffff00000000ffffffff
 -- 001:0123456789abcdeffedcba9876543210
 -- 002:0d88ddddddd9dcc899633cccc99887ac
+-- 003:0000eeedcb98642fffffffedcba97520
 -- </WAVES>
 
 -- <SFX>
 -- 000:020f0201020f02000201020e02010200020e02010200020e02020200020f02010201020e02000201020f020002020201020e02000201020f02000201300000000000
+-- 001:030008000500031f03500e9204a30ab503b503c505c503c304c107cf03cd13cb03c909c90fba03bb03ad038f070109020303030003000e000300038070b000000000
 -- </SFX>
 
 -- <FLAGS>
