@@ -630,6 +630,7 @@ function update_player_physics(delta)
     if Player.is_on_ground and btnp(BUTTONS.UP) then
       Player.vel = Player.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
       Player.is_on_ground = false
+      AUDIO.play_note(0, "G#5", 2, 10)
     end
   end
 
@@ -720,6 +721,14 @@ UI = {
       update = function()
         for i = 0,31 do
           if btnp(i) then
+            AUDIO.play_note(0, "C-4", 8)
+            AUDIO.play_note(0, "E-4", 8)
+            AUDIO.play_note(0, "G-4", 8)
+            AUDIO.play_note(0, "B-4", 8)
+            AUDIO.play_note(0, "D-4", 8)
+            AUDIO.play_note(0, "G-4", 8)
+            AUDIO.play_note(0, "C-5", 8)
+
             UI.enter(2)
           end
         end
@@ -833,7 +842,7 @@ function UI.enter(arg)
         end
       end
 
-      completion = completion + 0.05
+      completion = completion + 0.04
     end
   end
 
@@ -1113,6 +1122,8 @@ end
 
 function AUDIO.play_note(sfx_id, note, duration, volume)
   local started_at
+
+  volume = volume or 15
 
   if #AUDIO.QUEUED_NOTES == 0 then
     sfx(sfx_id, note, duration, 0, volume)
