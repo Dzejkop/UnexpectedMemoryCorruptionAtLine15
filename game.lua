@@ -21,6 +21,9 @@ local BITS = {
 ----------------
 -- GAME STATE --
 
+-- Ticks since the game started
+TICKS = 0
+
 CURRENT_LEVEL = 1
 
 --------------
@@ -132,7 +135,6 @@ function filter(items, predicate)
           return item
         end
       end
-
     end
   end
 end
@@ -769,6 +771,14 @@ UI = {
     [2] = {
       update = function()
         if btnp(4) then
+          if CW.is_set(UI.VARS.SEL_CWORD_BIT) then
+            AUDIO.play_note(0, "D#5", 2, 10)
+            AUDIO.play_note(0, "C#5", 2, 10)
+          else
+            AUDIO.play_note(0, "C#5", 2, 10)
+            AUDIO.play_note(0, "D#5", 2, 10)
+          end
+
           CW.toggle(UI.VARS.SEL_CWORD_BIT)
         end
 
@@ -1068,6 +1078,56 @@ function UiLabel:_bounding_box()
   return bb
 end
 
+---------------
+---- Audio ----
+---------------
+
+AUDIO = {
+  QUEUED_NOTES = {}
+}
+
+function AUDIO.update()
+  if #AUDIO.QUEUED_NOTES == 0 then
+    return
+  end
+
+  local current_note = AUDIO.QUEUED_NOTES[1]
+  local next_note = AUDIO.QUEUED_NOTES[2]
+
+  if TICKS >= current_note.started_at + current_note.duration - 1 then
+    table.remove(AUDIO.QUEUED_NOTES, 1)
+
+    if next_note then
+      next_note.started_at = TICKS
+
+      sfx(
+        next_note.sfx,
+        next_note.note,
+        next_note.duration,
+        0,
+        next_note.volume
+      )
+    end
+  end
+end
+
+function AUDIO.play_note(sfx_id, note, duration, volume)
+  local started_at
+
+  if #AUDIO.QUEUED_NOTES == 0 then
+    sfx(sfx_id, note, duration, 0, volume)
+    started_at = TICKS
+  end
+
+  table.insert(AUDIO.QUEUED_NOTES, {
+    sfx = sfx_id,
+    note = note,
+    duration = duration,
+    volume = volume,
+    started_at = started_at,
+  })
+end
+
 ----------------
 ---- System ----
 ----------------
@@ -1093,6 +1153,9 @@ function TIC()
   end
 
   UI.render()
+  AUDIO.update()
+
+  TICKS = TICKS + 1
 end
 
 function SCN(line)
