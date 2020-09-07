@@ -14,6 +14,8 @@
         "cls",
         "pix",
         "line",
-        "rect"
+        "rect",
+        "sfx",
+        "music"
     ]
 }
