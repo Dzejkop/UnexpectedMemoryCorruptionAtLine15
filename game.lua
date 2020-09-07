@@ -13,6 +13,11 @@ CHR_WIDTH = 6
 -- TIC-80 default font's char height, in pixels
 CHR_HEIGHT = 6
 
+local BITS = {
+  COLLISION = 0,
+  GRAVITY = 1
+}
+
 ----------------
 -- GAME STATE --
 
@@ -137,7 +142,14 @@ end
 ----------------------
 
 CW = {
-  reg = 0
+  reg = 0,
+  observers = {
+    function(bit_idx)
+      if bit_idx == BITS.COLLISION then
+        Player.is_on_ground = false
+      end
+    end
+  }
 }
 
 function CW.is_set(bit_idx)
@@ -146,11 +158,12 @@ function CW.is_set(bit_idx)
 end
 
 function CW.toggle(bit_idx)
+  for _, observer in ipairs(CW.observers) do
+    observer(bit_idx)
+  end
   bit_idx = 7 - bit_idx
   CW.reg = CW.reg ~ (1 << bit_idx)
 end
-
-CW.toggle(0)
 
 -------------
 ---- HUD ----
@@ -237,6 +250,9 @@ SPRITES = {
   },
   SPIDER = {
     LOWERING = 242
+  },
+  POOF = {
+    49, 50, 51, 64
   }
 }
 
@@ -257,15 +273,20 @@ STATES = {
 ---- Player ----
 ----------------
 
+-- determines how long (in seconds) the player can hold the
+-- jump button, to have reduced gravity
+MAX_GRAVITY_REDUCT_TIME = 0.2
+
 Player = {
   pos = Vec.new(30, 8*10),
   vel = Vec.new(0, 0),
   current_sprite = SPRITES.PLAYER.IDLE,
-  speed = 1,
+  speed = 100,
   collider = {
     offset = Vec.new(2, 3),
     size = Vec.new(11, 13)
   },
+  inverse_air_time = MAX_GRAVITY_REDUCT_TIME,
   is_on_ground = false,
   is_dead = false
 }
@@ -289,6 +310,12 @@ function Player.collider_bottom_left(self)
 end
 
 function Player.collider_top_right(self)
+  return self.pos
+    :add(self.collider.offset)
+    :add(Vec.right():mul(self.collider.size.x))
+end
+
+function Player.collider_top_left(self)
   return self.pos
     :add(self.collider.offset)
     :add(Vec.right():mul(self.collider.size.x))
@@ -397,9 +424,11 @@ function lost_soul_handler(obj)
 end
 
 function game_init()
+  CW.toggle(BITS.COLLISION)
+  CW.toggle(BITS.GRAVITY)
+
   enemies[1] = {
     type = ENEMIES.LOST_SOUL,
-    state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 32),
     acc = Vec.new(0.07, 0.2),
     vel = Vec.new(0, 0),
@@ -411,7 +440,6 @@ function game_init()
 
   enemies[2] = {
     type = ENEMIES.LOST_SOUL,
-    state = STATES.LOST_SOUL.FLYING,
     pos = Vec.new(10, 48),
     acc = Vec.new(0.02, 0.1),
     vel = Vec.new(0, 0),
@@ -423,7 +451,6 @@ function game_init()
 
   enemies[3] = {
     type = ENEMIES.SPIDER,
-    state = STATES.SPIDER.LOWERING,
     string_attached_at = 16,
     pos = Vec.new(8*20, 16),
     acc = Vec.new(0, 0),
@@ -442,11 +469,16 @@ function find_tiles_below_collider()
     :mul(1 / 8)
     :floor()
 
+  local below_center = Player:collider_center()
+    :add(Vec.down())
+    :mul(1 / 8)
+    :floor()
+
   local below_right = Player:collider_bottom_right()
     :mul(1 / 8)
     :floor()
 
-  return { below_left, below_right }
+  return { below_left, below_center, below_right }
 end
 
 function find_tiles_in_front_of_player()
@@ -457,7 +489,18 @@ function find_tiles_in_front_of_player()
   return { forward }
 end
 
-function game_update()
+function find_tiles_above_player()
+  local top_left = Player:collider_top_left()
+    :mul(1 / 8)
+    :floor()
+  local top_right = Player:collider_top_right()
+    :mul(1 / 8)
+    :floor()
+
+  return { top_left, top_right }
+end
+
+function game_update(delta)
   -- go through enemies
   for i, v in ipairs(enemies) do
     spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(v.type))
@@ -470,12 +513,14 @@ function game_update()
     y2 = Player.pos.y
     distance = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
     if distance < enemy_type_to_collision_radius(v.type) then
-      Player.is_dead = true
-      Player.current_sprite = SPRITES.PLAYER.DEAD
+      if not Player.is_dead then
+        Player.is_dead = true
+        Player.current_sprite = SPRITES.PLAYER.DEAD
+      end
     end
   end
 
-  if Player then player_update() end
+  if Player then player_update(delta) end
 end
 
 function game_mget(vec)
@@ -484,19 +529,13 @@ function game_mget(vec)
   return mget(offset_vec.x, offset_vec.y)
 end
 
-function player_update()
-  -- apply gravity
-  if not Player.is_on_ground then
-    Player.vel.y = Player.vel.y + 0.1
-  end
-
-  -- Check for collisions with floor
-  local tiles_below_player = find_tiles_below_collider()
-
+function collisions_update()
   function is_tile_ground(tile)
     return fget(game_mget(tile), FLAGS.IS_GROUND)
   end
 
+  -- collisions below player
+  local tiles_below_player = find_tiles_below_collider()
   local tile_below_player = filter(iter(tiles_below_player), is_tile_ground)()
 
   if tile_below_player ~= nil then
@@ -509,40 +548,121 @@ function player_update()
     Player.is_on_ground = false
   end
 
-  if not Player.is_dead then 
-    if btn(BUTTONS.RIGHT) then
-      Player.vel.x = math.clamp(Player.vel.x + 0.1, -Player.speed, Player.speed)
-    elseif btn(BUTTONS.LEFT) then
-      Player.vel.x = math.clamp(Player.vel.x - 0.1, -Player.speed, Player.speed)
+  -- collisions to the sides
+  local tiles_to_the_right_of_player = find_tiles_in_front_of_player()
+
+  local tile_to_the_right_of_player = filter(iter(tiles_to_the_right_of_player), is_tile_ground)()
+  local is_colliding_horizontally = tile_to_the_right_of_player ~= nil
+
+  -- collisions above player
+  local tiles_above_player = find_tiles_above_player()
+  local tile_above_player = filter(iter(tiles_above_player), is_tile_ground)()
+
+  if Player.vel.y < 0 and tile_above_player ~= nil then
+    Player.vel.y = 0
+  end
+
+  return is_colliding_horizontally
+end
+
+local PHYSICS = {
+  GRAVITY_FORCE = 520,
+  REDUCED_GRAVITY = 170,
+  REVERSED_GRAVITY_FORCE = -10,
+  PLAYER_ACCELERATION = 200,
+  PLAYER_DECCELERATION = 600,
+  PLAYER_JUMP_FORCE = 120
+}
+
+function update_player_physics(delta)
+  -- apply gravity
+  if CW.is_set(BITS.GRAVITY) then
+    if not Player.is_on_ground then
+      if btn(BUTTONS.UP) and Player.inverse_air_time > 0 then
+        Player.vel.y = Player.vel.y + PHYSICS.REDUCED_GRAVITY * delta
+      else
+        Player.vel.y = Player.vel.y + PHYSICS.GRAVITY_FORCE * delta
+      end
+
+      Player.inverse_air_time = Player.inverse_air_time - delta
     else
-      Player.vel.x = Player.vel.x * 0.7
+      Player.inverse_air_time = MAX_GRAVITY_REDUCT_TIME
     end
+  else
+    Player.vel.y = Player.vel.y + PHYSICS.REVERSED_GRAVITY_FORCE * delta
   end
 
-  -- check for collisions to the sides
-  if CW.is_set(0) then
-    local tiles_to_the_right_of_player = find_tiles_in_front_of_player()
-
-    local tile_to_the_right_of_player = filter(iter(tiles_to_the_right_of_player), is_tile_ground)()
-
-    if math.abs(Player.vel.x) > 0 and tile_to_the_right_of_player ~= nil then
-      Player.vel.x = 0
-    end
+  local is_colliding_horizontally = false
+  if CW.is_set(BITS.COLLISION) then
+    is_colliding_horizontally = collisions_update()
   end
 
-  -- jump
   if not Player.is_dead then
+    local steering_factor
+    if Player.is_on_ground then
+      steering_factor = 1.0
+    else
+      if CW.is_set(BITS.GRAVITY) then
+        steering_factor = 0.6
+      else
+        steering_factor = 0.1
+      end
+    end
+    if btn(BUTTONS.RIGHT) then
+      Player.vel.x = math.clamp(Player.vel.x + PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -Player.speed, Player.speed)
+    elseif btn(BUTTONS.LEFT) then
+      Player.vel.x = math.clamp(Player.vel.x - PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -Player.speed, Player.speed)
+    else
+      if Player.is_on_ground then
+        if math.abs(Player.vel.x) > 1 then
+          local sign = Player.vel.x / math.abs(Player.vel.x)
+          Player.vel.x = Player.vel.x - PHYSICS.PLAYER_DECCELERATION * sign * delta
+          if math.abs(Player.vel.x) < 10 then -- at 10 pixels/s reduce to 0
+            Player.vel.x = 0
+          end
+        end
+      end
+    end
+
+    -- jump
     if Player.is_on_ground and btnp(BUTTONS.UP) then
-      Player.vel = Player.vel:add(Vec:up():mul(2))
+      Player.vel = Player.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
       Player.is_on_ground = false
     end
   end
 
+  if math.abs(Player.vel.x) > 0 and is_colliding_horizontally then
+    Player.vel.x = 0
+  end
+
+  if Player.vel.y > 0 and Player.is_on_ground then
+    Player.vel.y = 0
+  end
+
+  Player.pos = Player.pos:add(Player.vel:mul(delta))
+end
+
+local run_animation_state = {
+  switch_every = 0.2, -- seconds
+  timer = 0,
+  last_change_at = 0,
+  current = 1,
+  frames = { SPRITES.PLAYER.RUN_1, SPRITES.PLAYER.RUN_2 }
+}
+
+local idle_animation_state = {
+  switch_every = 0.75, -- seconds
+  last_change_at = 0,
+  current = 1,
+  frames = { SPRITES.PLAYER.IDLE_1, SPRITES.PLAYER.IDLE_2 }
+}
+
+function player_update(delta)
+  update_player_physics(delta)
+
   -- Check is colliding with flag
   local player_occupied_tile = Player:collider_center():mul(1 / 8):floor()
   if fget(game_mget(player_occupied_tile), FLAGS.IS_WIN) then
-    trace("VICTORY!!!!")
-
     if not UI.TRANSITION then
       UI.enter(function ()
         CURRENT_LEVEL = CURRENT_LEVEL + 1
@@ -552,24 +672,24 @@ function player_update()
 
   -- Animations
   if not Player.is_dead then
+    local x = math.abs(Player.vel.x)
     if not Player.is_on_ground then
       Player.current_sprite = SPRITES.PLAYER.IN_AIR
-    elseif math.abs(Player.vel.x) > 0.01 then
-      if math.floor(time() * 0.01) % 2 == 0 then
-        Player.current_sprite = SPRITES.PLAYER.RUN_1
-      else
-        Player.current_sprite = SPRITES.PLAYER.RUN_2
+    elseif math.abs(Player.vel.x) > 1 then
+      run_animation_state.timer = run_animation_state.timer + (0.05 * delta * math.abs(Player.vel.x))
+      if run_animation_state.timer - run_animation_state.last_change_at > run_animation_state.switch_every then
+        run_animation_state.current = 1 + ((run_animation_state.current + 2) % #run_animation_state.frames)
+        run_animation_state.last_change_at = run_animation_state.timer
       end
+      Player.current_sprite = run_animation_state.frames[run_animation_state.current]
     else
-      if math.floor(time() * 0.001) % 2 == 0 then
-        Player.current_sprite = SPRITES.PLAYER.IDLE_1
-      else
-        Player.current_sprite = SPRITES.PLAYER.IDLE_2
+      if T - idle_animation_state.last_change_at > idle_animation_state.switch_every then
+        idle_animation_state.current = 1 + ((idle_animation_state.current + 2) % #idle_animation_state.frames)
+        idle_animation_state.last_change_at = T
       end
+      Player.current_sprite = idle_animation_state.frames[idle_animation_state.current]
     end
   end
-
-  Player.pos = Player.pos:add(Player.vel)
 end
 
 function game_render()
@@ -952,14 +1072,23 @@ end
 ---- System ----
 ----------------
 
+function seconds()
+  return time() / 1000
+end
+
+T = seconds()
+
 function TIC()
+  local delta = seconds() - T
+  T = seconds()
+
   UI.update()
 
   cls()
 
   if UI.SCREEN > 1 then
     game_render()
-    game_update()
+    game_update(delta)
     hud_render()
   end
 
@@ -1043,11 +1172,16 @@ TESTS()
 -- 040:aaaaaaaaa9999998a9999998a9999998a9999998a9999998a9999998a9999998
 -- 041:0000000000000000000000000000000000d000000dd000000dd0000d0dd0d00d
 -- 042:00000000000000d0000000d0000000d0d00000d0d0000dd0d0000dd0d0000dd0
+-- 049:000000000000000000000000000cc000000cc000000000000000000000000000
+-- 050:0000000000000000000cc00000cccc0000cccc00000cc0000000000000000000
+-- 051:0000000000cccc000cccccc00cccccc00cccccc00cccccc000cccc0000000000
 -- 052:a9999999a9999999a9999999a9999999a9999999a9999999a999999988888888
 -- 053:9999999899999998999999989999999899999998999999989999999888888888
 -- 056:a9999998a9999998a9999998a9999998a9999998a9999998a999999888888888
 -- 057:0dd0d00d0dd0d00d0dd0d00d0dd0d00d0dd0dd0dddd0ddddddd0ddddddd0dddd
 -- 058:d0000dd0d000ddd0d000ddd0d0d0ddd0d0d0ddd0d0d0ddd0ddddddd0ddddddd0
+-- 065:00cccc000cccccc0cccccccccccccccccccccccccccccccc0cccccc000cccc00
+-- 066:0000000000000000000000000000c000000cc000000000000000000000000000
 -- 069:0000000000000000000000000002200000022222000222220002222200000222
 -- 070:0000000000000000000000002244000022440000224400002244000000440000
 -- 086:0044000000440000004400000044000000440000004400000044000000440000

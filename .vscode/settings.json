@@ -12,6 +12,8 @@
         "time",
         "poke",
         "cls",
-        "pix"
+        "pix",
+        "line",
+        "rect"
     ]
 }
