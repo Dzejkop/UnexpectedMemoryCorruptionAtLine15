@@ -15,7 +15,8 @@ CHR_HEIGHT = 6
 
 local BITS = {
   COLLISION = 0,
-  GRAVITY = 1
+  GRAVITY = 1,
+  DISENGAGE_MALEVOLENT_ORGANISM = 2
 }
 
 ----------------
@@ -149,6 +150,8 @@ CW = {
     function(bit_idx)
       if bit_idx == BITS.COLLISION then
         Player.is_on_ground = false
+      elseif bit_idx == BITS.DISENGAGE_MALEVOLENT_ORGANISM then
+        disengage_malevolent_organism()
       end
     end
   }
@@ -233,6 +236,83 @@ ENEMIES = {
 }
 
 enemies = {}
+
+function enemy_type_to_height(type)
+  if type == ENEMIES.LOST_SOUL then
+    return 2
+  elseif type == ENEMIES.SPIDER then
+    return 1
+  end
+end
+
+function enemy_type_to_collision_radius(type)
+  if type == ENEMIES.LOST_SOUL then
+    return 12
+  elseif type == ENEMIES.SPIDER then
+    return 8
+  end
+end
+
+function disengage_malevolent_organism()
+  -- Pick one
+  enemy_idx = math.random(1, #enemies)
+
+  -- Change activity
+  for i, v in ipairs(enemies) do
+    if i == enemy_idx then
+      v.paused = true;
+    else
+      v.paused = false;
+    end
+  end
+end
+
+------------------------
+---- Enemy painters ----
+------------------------
+function spider_painter(obj)
+  spr(obj.current_sprite, obj.pos.x, obj.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(obj.type))
+  line(obj.pos.x + 8, obj.pos.y, obj.pos.x + 8, obj.string_attached_at, 12)
+end
+
+function lost_soul_painter(obj)
+  spr(obj.current_sprite, obj.pos.x, obj.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(obj.type))
+end
+
+------------------------
+---- Enemy handlers ----
+------------------------
+function spider_handler(obj)
+  if obj.state == STATES.SPIDER.LOWERING then
+    obj.pos.y = obj.pos.y + obj.vel.y
+    obj.current_len = obj.current_len + 1
+    if obj.current_len == obj.max_len then
+      obj.state = STATES.SPIDER.CRAWLING
+    end
+  elseif obj.state == STATES.SPIDER.CRAWLING then
+    obj.pos.y = obj.pos.y - obj.vel.y
+    obj.current_len = obj.current_len - 1
+    if obj.current_len == 0 then
+      obj.state = STATES.SPIDER.LOWERING
+    end
+  end
+end
+
+function lost_soul_handler(obj)
+  if obj.state == STATES.LOST_SOUL.FLYING then
+    obj.vel.x = obj.vel.x + obj.acc.x
+    obj.pos.x = obj.pos.x + obj.vel.x
+
+    obj.vel.y = obj.vel.y + obj.acc.y
+    obj.pos.y = obj.pos.y + obj.vel.y
+  end
+  if obj.vel.x > obj.max_vel.x or obj.vel.x < -obj.max_vel.x then
+    obj.acc.x = -obj.acc.x
+  end
+  if obj.vel.y > obj.max_vel.y or obj.vel.y < -obj.max_vel.y then
+    obj.acc.y = -obj.acc.y
+  end
+end
 
 -----------------
 ---- Sprites ----
@@ -376,55 +456,6 @@ FLAGS = {
   IS_WIN = 1
 }
 
-function spider_handler(obj)
-  if obj.state == STATES.SPIDER.LOWERING then
-    obj.pos.y = obj.pos.y + obj.vel.y
-    obj.current_len = obj.current_len + 1
-    if obj.current_len == obj.max_len then
-      obj.state = STATES.SPIDER.CRAWLING
-    end
-  elseif obj.state == STATES.SPIDER.CRAWLING then
-    obj.pos.y = obj.pos.y - obj.vel.y
-    obj.current_len = obj.current_len - 1
-    if obj.current_len == 0 then
-      obj.state = STATES.SPIDER.LOWERING
-    end
-  end
-  line(obj.pos.x + 8, obj.pos.y, obj.pos.x + 8, obj.string_attached_at, 12)
-end
-
-function enemy_type_to_height(type)
-  if type == ENEMIES.LOST_SOUL then
-    return 2
-  elseif type == ENEMIES.SPIDER then
-    return 1
-  end
-end
-
-function enemy_type_to_collision_radius(type)
-  if type == ENEMIES.LOST_SOUL then
-    return 12
-  elseif type == ENEMIES.SPIDER then
-    return 8
-  end
-end
-
-function lost_soul_handler(obj)
-  if obj.state == STATES.LOST_SOUL.FLYING then
-    obj.vel.x = obj.vel.x + obj.acc.x
-    obj.pos.x = obj.pos.x + obj.vel.x
-
-    obj.vel.y = obj.vel.y + obj.acc.y
-    obj.pos.y = obj.pos.y + obj.vel.y
-  end
-  if obj.vel.x > obj.max_vel.x or obj.vel.x < -obj.max_vel.x then
-    obj.acc.x = -obj.acc.x
-  end
-  if obj.vel.y > obj.max_vel.y or obj.vel.y < -obj.max_vel.y then
-    obj.acc.y = -obj.acc.y
-  end
-end
-
 function game_init()
   CW.toggle(BITS.COLLISION)
   CW.toggle(BITS.GRAVITY)
@@ -437,7 +468,9 @@ function game_init()
     max_vel = Vec.new(3, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
     state = STATES.LOST_SOUL.FLYING,
-    handler = lost_soul_handler
+    handler = lost_soul_handler,
+    painter = lost_soul_painter,
+    paused = false
   }
 
   enemies[2] = {
@@ -448,7 +481,9 @@ function game_init()
     max_vel = Vec.new(2.5, 1.1),
     current_sprite = SPRITES.LOST_SOUL.FLYING,
     state = STATES.LOST_SOUL.FLYING,
-    handler = lost_soul_handler
+    handler = lost_soul_handler,
+    painter = lost_soul_painter,
+    paused = false
   }
 
   enemies[3] = {
@@ -462,8 +497,12 @@ function game_init()
     max_vel = 0,
     current_sprite = SPRITES.SPIDER.LOWERING,
     state = STATES.SPIDER.LOWERING,
-    handler = spider_handler
+    handler = spider_handler,
+    painter = spider_painter,
+    paused = false
   }
+
+  CW.toggle(BITS.DISENGAGE_MALEVOLENT_ORGANISM) -- requires enemies to be initialized
 end
 
 function find_tiles_below_collider()
@@ -504,9 +543,11 @@ end
 
 function game_update(delta)
   -- go through enemies
-  for i, v in ipairs(enemies) do
-    spr(v.current_sprite, v.pos.x, v.pos.y, 0, 1, 0, 0, 2, enemy_type_to_height(v.type))
-    v.handler(v)
+  for _, v in ipairs(enemies) do
+    if not v.paused then
+      v.handler(v)
+    end
+    v.painter(v)
 
     -- check collision with player
     x1 = v.pos.x
