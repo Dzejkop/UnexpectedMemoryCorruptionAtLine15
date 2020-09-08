@@ -1026,18 +1026,35 @@ UI = {
   SCREENS = {
     -- Screen: Introduction
     [1] = {
-      update = function()
+      update = function(screen)
+        local start_game = function()
+          -- Avoid bugging game by keeping keys pressed for more than one frame
+          if screen.vars.started then
+            return
+          end
+
+          screen.vars.started = true
+
+          AUDIO.play_note(0, "C-4", 8)
+          AUDIO.play_note(0, "E-4", 8)
+          AUDIO.play_note(0, "G-4", 8)
+          AUDIO.play_note(0, "B-4", 8)
+          AUDIO.play_note(0, "D-4", 8)
+          AUDIO.play_note(0, "G-4", 8)
+          AUDIO.play_note(0, "C-5", 8)
+
+          UI.enter(2)
+        end
+
         for i = 0,31 do
           if btnp(i) then
-            AUDIO.play_note(0, "C-4", 8)
-            AUDIO.play_note(0, "E-4", 8)
-            AUDIO.play_note(0, "G-4", 8)
-            AUDIO.play_note(0, "B-4", 8)
-            AUDIO.play_note(0, "D-4", 8)
-            AUDIO.play_note(0, "G-4", 8)
-            AUDIO.play_note(0, "C-5", 8)
+            start_game()
+          end
+        end
 
-            UI.enter(2)
+        for i = 1,65 do
+          if key(i) then
+            start_game()
           end
         end
       end,
@@ -1066,7 +1083,7 @@ UI = {
           :new()
           :with_xy(0, SCR_HEIGHT - 12)
           :with_wh(SCR_WIDTH, SCR_HEIGHT)
-          :with_text("press any button to start")
+          :with_text("press any key to start")
           :with_color(4)
           :with_centered()
           :with_wavy()
@@ -1082,6 +1099,10 @@ UI = {
           end
         end
       end,
+
+      vars = {
+        started = false,
+      }
     },
 
     -- Screen: Game
@@ -1185,7 +1206,7 @@ function UI.update()
   local screen = UI.SCREENS[UI.SCREEN]
 
   if screen.update then
-    screen.update()
+    screen:update()
   end
 end
 
@@ -1193,7 +1214,7 @@ function UI.render()
   local screen = UI.SCREENS[UI.SCREEN]
 
   if screen.render then
-    screen.render()
+    screen:render()
   end
 
   if UI.TRANSITION then
