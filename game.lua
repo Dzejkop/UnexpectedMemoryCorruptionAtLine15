@@ -1107,9 +1107,9 @@ UI = {
           return
         end
 
-        screen.vars.started = true
-
         if any_key() then
+          screen.vars.started = true
+
           AUDIO.play_note(0, "C-4", 8)
           AUDIO.play_note(0, "E-4", 8)
           AUDIO.play_note(0, "G-4", 8)
