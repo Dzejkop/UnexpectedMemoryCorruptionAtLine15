@@ -849,7 +849,6 @@ function player_update(delta)
 
   -- Animations
   if not Player.is_dead then
-    local x = math.abs(Player.vel.x)
     if not Player.is_on_ground then
       Player.current_sprite = SPRITES.PLAYER.IN_AIR
     elseif math.abs(Player.vel.x) > 1 then
