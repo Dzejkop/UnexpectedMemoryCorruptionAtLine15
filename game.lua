@@ -18,7 +18,8 @@ local BITS = {
   GRAVITY = 6,
   DISENGAGE_MALEVOLENT_ORGANISM = 5,
   SLOW_MOTION = 4,
-  SHIFT_POS = 3
+  SHIFT_POS_X = 3,
+  SHIFT_POS_Y = 2
 }
 
 local TRACKS = {
@@ -550,11 +551,16 @@ LEVELS = {
 }
 
 function LEVELS.current_offset()
-  if CW.is_set(BITS.SHIFT_POS) then
-    return LEVELS[CURRENT_LEVEL].map_offset:add(Vec.new(15, 0))
-  else
-    return LEVELS[CURRENT_LEVEL].map_offset
+  local offset = Vec.new(0, 0)
+  if CW.is_set(BITS.SHIFT_POS_X) then
+    offset = offset:add(Vec.new(15, 0))
   end
+
+  if CW.is_set(BITS.SHIFT_POS_Y) then
+    offset = offset:add(Vec.new(0, 8))
+  end
+
+  return LEVELS[CURRENT_LEVEL].map_offset:add(offset)
 end
 
 ---------------
@@ -628,7 +634,7 @@ function find_tiles_below_collider()
     :floor()
 
   local below_center = Player:collider_center()
-    :add(Vec.down())
+    :add(Vec.down():mul(Player.collider.size.y / 2))
     :mul(1 / 8)
     :floor()
 
