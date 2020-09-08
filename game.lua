@@ -179,6 +179,12 @@ CW = {
   }
 }
 
+function CW.restart()
+  CW.reg = 0
+  CW.toggle(BITS.GRAVITY)
+  CW.toggle(BITS.COLLISION)
+end
+
 function CW.is_set(bit_idx)
   return CW.reg & (1 << bit_idx) > 0
 end
@@ -250,8 +256,40 @@ function hud_render()
     end
   end
 
+  function render_restart()
+    local color_a = 12
+    local color_b = 14
+
+    if TICKS % 60 > 30 then
+      color_a, color_b = color_b, color_a
+    end
+
+    UiLabel
+      :new()
+      :with_xy(0, hud_y + 4)
+      :with_wh(SCR_WIDTH, SCR_HEIGHT)
+      :with_text("You are dead")
+      :with_color(color_a)
+      :with_centered()
+      :render()
+
+    UiLabel
+      :new()
+      :with_xy(0, hud_y + 14)
+      :with_wh(SCR_WIDTH, SCR_HEIGHT)
+      :with_text("Press any key to start over")
+      :with_color(color_b)
+      :with_centered()
+      :render()
+  end
+
   render_background()
-  render_control_word_register()
+
+  if Player.is_dead then
+    render_restart()
+  else
+    render_control_word_register()
+  end
 end
 
 -----------------
@@ -548,7 +586,7 @@ end
 MAX_GRAVITY_REDUCT_TIME = 0.2
 
 Player = {
-  pos = Vec.new(8, 1 * TILE_SIZE),
+  pos = Vec.new(0, 0),
   vel = Vec.new(0, 0),
   current_sprite = SPRITES.PLAYER.IDLE,
   speed = 100,
@@ -560,6 +598,14 @@ Player = {
   is_on_ground = false,
   is_dead = false
 }
+
+function Player:restart(spawn_location)
+  self.pos = spawn_location
+  self.vel = Vec.new(0, 0)
+  self.current_sprite = SPRITES.PLAYER.IDLE
+  self.is_on_ground = false
+  self.is_dead = false
+end
 
 function Player.collider_bottom_center(self)
   return self:collider_bottom_left()
@@ -598,6 +644,7 @@ end
 
 function Player.kill(self)
   AUDIO.play_note(1, "C#3", 64, 10)
+
   self.is_dead = true
   self.current_sprite = SPRITES.PLAYER.DEAD
 
@@ -622,7 +669,7 @@ LEVEL = 3
 
 LEVELS = {
   [1] = {
-    spawn_location = Vec.new(10, 30),
+    spawn_location = Vec.new(4 * TILE_SIZE, 4 * TILE_SIZE),
     map_offset = Vec.new(0, 0),
     allowed_cw_bits = 0,
 
@@ -639,7 +686,7 @@ LEVELS = {
   },
 
   [2] = {
-    spawn_location = Vec.new(10, 30),
+    spawn_location = Vec.new(26 * TILE_SIZE, 4 * TILE_SIZE),
     map_offset = Vec.new(30, 0),
     allowed_cw_bits = 1,
 
@@ -671,7 +718,7 @@ LEVELS = {
   },
 }
 
-function LEVELS.enter(id)
+function LEVELS.start(id)
   EFFECTS = {}
   ENEMIES = {}
 
@@ -681,11 +728,18 @@ function LEVELS.enter(id)
     ENEMIES = level.build_enemies()
   end
 
+  Player:restart(level.spawn_location)
+  CW:restart()
+
   LEVEL = id
 end
 
-function LEVELS.next()
-  LEVELS.enter(LEVEL + 1)
+function LEVELS.restart()
+  LEVELS.start(LEVEL)
+end
+
+function LEVELS.start_next()
+  LEVELS.start(LEVEL + 1)
 end
 
 function LEVELS.map_offset()
@@ -721,12 +775,6 @@ FLAGS = {
   IS_GROUND = 0,
   IS_WIN = 1
 }
-
-function game_init()
-  CW.toggle(BITS.GRAVITY)
-  CW.toggle(BITS.COLLISION)
-  LEVELS.enter(2)
-end
 
 function find_tiles_below_collider()
   local below_left = Player:collider_bottom_left()
@@ -960,7 +1008,7 @@ function player_update(delta)
       music(TRACKS.VICTORY, -1, -1, false)
 
       UI.enter(function ()
-        LEVELS.next()
+        LEVELS.start_next()
       end)
     end
   end
@@ -1038,14 +1086,14 @@ UI = {
     -- Screen: Introduction
     [1] = {
       update = function(screen)
-        local start_game = function()
-          -- Avoid bugging game by keeping keys pressed for more than one frame
-          if screen.vars.started then
-            return
-          end
+        -- Avoid bugging game by keeping keys pressed for more than one frame
+        if screen.vars.started then
+          return
+        end
 
-          screen.vars.started = true
+        screen.vars.started = true
 
+        if any_key() then
           AUDIO.play_note(0, "C-4", 8)
           AUDIO.play_note(0, "E-4", 8)
           AUDIO.play_note(0, "G-4", 8)
@@ -1055,18 +1103,6 @@ UI = {
           AUDIO.play_note(0, "C-5", 8)
 
           UI.enter(2)
-        end
-
-        for i = 0,31 do
-          if btnp(i) then
-            start_game()
-          end
-        end
-
-        for i = 1,65 do
-          if key(i) then
-            start_game()
-          end
         end
       end,
 
@@ -1119,6 +1155,14 @@ UI = {
     -- Screen: Game
     [2] = {
       update = function()
+        if Player.is_dead then
+          if any_key() then
+            LEVELS.restart()
+          end
+
+          return
+        end
+
         if btnp(4) then
           if LEVELS.allowed_cw_bits() == 0 then
             AUDIO.play_note(0, "D#5", 4, 12)
@@ -1203,7 +1247,7 @@ function UI.enter(arg)
 
     UI.TRANSITION = create_transition(function ()
       if screen_idx == 2 then
-        game_init()
+        LEVELS.start(1)
       end
 
       UI.SCREEN = screen_idx
@@ -1241,6 +1285,22 @@ function UI.scanline(line)
   if screen.scanline then
     screen.scanline(line)
   end
+end
+
+function any_key()
+  for i = 0,31 do
+    if btnp(i) then
+      return true
+    end
+  end
+
+  for i = 1,65 do
+    if keyp(i) then
+      return true
+    end
+  end
+
+  return false
 end
 
 -------------
