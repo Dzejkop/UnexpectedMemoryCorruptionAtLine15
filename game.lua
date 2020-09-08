@@ -668,7 +668,7 @@ end
 ----------------
 
 LEVEL = 1
-FIRST_LEVEL = 4
+FIRST_LEVEL = 1
 
 LEVELS = {
   [1] = {
