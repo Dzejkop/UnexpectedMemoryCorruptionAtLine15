@@ -17,7 +17,8 @@ local BITS = {
   COLLISION = 7,
   GRAVITY = 6,
   DISENGAGE_MALEVOLENT_ORGANISM = 5,
-  SLOW_MOTION = 4
+  SLOW_MOTION = 4,
+  SHIFT_POS = 3
 }
 
 local TRACKS = {
@@ -549,7 +550,11 @@ LEVELS = {
 }
 
 function LEVELS.current_offset()
-  return LEVELS[CURRENT_LEVEL].map_offset
+  if CW.is_set(BITS.SHIFT_POS) then
+    return LEVELS[CURRENT_LEVEL].map_offset:add(Vec.new(15, 0))
+  else
+    return LEVELS[CURRENT_LEVEL].map_offset
+  end
 end
 
 ---------------
