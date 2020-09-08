@@ -290,12 +290,12 @@ LOST_SOUL_ENEMY = {
   },
 }
 
-function LostSoulEnemy:new(pos, vel, acc, max_vel)
+function LostSoulEnemy:new(props)
   return setmetatable({
-    pos = pos,
-    vel = vel,
-    acc = acc,
-    max_vel = max_vel,
+    pos = props.pos,
+    vel = props.vel,
+    acc = props.acc,
+    max_vel = props.max_vel,
     state = LOST_SOUL_ENEMY.STATES.FLYING,
   }, { __index = LostSoulEnemy })
 end
@@ -355,12 +355,14 @@ SPIDER_ENEMY = {
   },
 }
 
-function SpiderEnemy:new(pos, max_len)
+function SpiderEnemy:new(props)
   return setmetatable({
-    pos = pos,
+    pos = props.pos,
+    len = props.len or 1,
+    max_len = props.max_len or 6,
+    left_sign = props.left_sign,
+    right_sign = props.right_sign,
     state = SPIDER_ENEMY.STATES.LOWERING,
-    len = 1,
-    max_len = max_len,
   }, { __index = SpiderEnemy })
 end
 
@@ -385,6 +387,14 @@ function SpiderEnemy:update()
 end
 
 function SpiderEnemy:render()
+  line(
+    self.pos.x + TILE_SIZE,
+    self.pos.y,
+    self.pos.x + TILE_SIZE,
+    self.pos.y + self.len + 2,
+    12
+  )
+
   spr(
     SPIDER_ENEMY.SPRITES.DEFAULT,
     self.pos.x,
@@ -394,16 +404,24 @@ function SpiderEnemy:render()
     0,
     0,
     2,
-    2
+    1
   )
 
-  line(
-    self.pos.x + TILE_SIZE,
-    self.pos.y,
-    self.pos.x + TILE_SIZE,
-    self.pos.y + self.len,
-    12
-  )
+  if self.left_sign then
+    spr(
+      self.left_sign,
+      self.pos.x,
+      self.pos.y + self.len + TILE_SIZE
+    )
+  end
+
+  if self.right_sign then
+    spr(
+      self.right_sign,
+      self.pos.x + TILE_SIZE,
+      self.pos.y + self.len + TILE_SIZE
+    )
+  end
 end
 
 function SpiderEnemy:collision_radius()
@@ -602,10 +620,12 @@ LEVELS = {
 
     build_enemies = function()
       return {
-        SpiderEnemy:new(
-          Vec.new(2 * TILE_SIZE, TILE_SIZE),
-          6
-        ),
+        SpiderEnemy:new({
+          pos = Vec.new(2 * TILE_SIZE, TILE_SIZE),
+          max_len = 6,
+          left_sign = 258,
+          right_sign = 256,
+        })
       }
     end,
   },
