@@ -17,20 +17,20 @@ CHR_HEIGHT = 6
 TILE_SIZE = 8
 
 local BITS = {
-  GRAVITY = 7,
-  COLLISION = 6,
-  DISENGAGE_MALEVOLENT_ORGANISM = 5,
-  SLOW_MOTION = 4,
-  SHIFT_POS_X = 3,
-  SHIFT_POS_Y = 2,
+  GRAVITY = 0,
+  SLOW_MOTION = 1,
+  COLLISION = 2,
+  DISENGAGE_MALEVOLENT_ORGANISM = 3,
+  SHIFT_POS_X = 4,
+  SHIFT_POS_Y = 5,
 }
 
 local TRACKS = {
-  VICTORY = 0
+  VICTORY = 0,
 }
 
 local SFX = {
-  JUMP = 3
+  JUMP = 3,
 }
 
 -- first 3 tracks for music, last channel for sfx
@@ -127,6 +127,7 @@ function Vec.trace(self, name)
   else
     name = ""
   end
+
   trace(name .. "{ x = " .. self.x .. ", y = " .. self.y .. " }")
 end
 
@@ -136,6 +137,7 @@ end
 
 function iter(items)
   local i = 1
+
   return function()
     local ret = items[i]
     i = i + 1
@@ -222,17 +224,23 @@ function hud_render()
         bit_color = 13
       end
 
+      if bit_idx >= LEVELS.allowed_cw_bits() then
+        bit_color = 14
+      end
+
       local bit_dy = 0
 
-      if bit_idx == UI.VARS.SEL_CWORD_BIT then
-        bit_dy = -2
+      if LEVELS.allowed_cw_bits() > 0 then
+        if bit_idx == UI.VARS.SEL_CWORD_BIT then
+          bit_dy = -2
 
-        -- The character for `1` is somewhat visibly shorter, so our underline
-        -- has to account for that
-        if bit == 1 then
-          rect(bit_x + 1, bit_y + 12, 10, 1, 4)
-        else
-          rect(bit_x - 1, bit_y + 12, 12, 1, 4)
+          -- The character for `1` is somewhat visibly shorter, so our underline
+          -- has to account for that
+          if bit == 1 then
+            rect(bit_x + 1, bit_y + 12, 10, 1, 4)
+          else
+            rect(bit_x - 1, bit_y + 12, 12, 1, 4)
+          end
         end
       end
 
@@ -245,7 +253,6 @@ function hud_render()
   render_background()
   render_control_word_register()
 end
-
 
 -----------------
 ---- Enemies ----
@@ -617,6 +624,7 @@ LEVELS = {
   [1] = {
     spawn_location = Vec.new(10, 30),
     map_offset = Vec.new(0, 0),
+    allowed_cw_bits = 0,
 
     build_enemies = function()
       return {
@@ -633,10 +641,21 @@ LEVELS = {
   [2] = {
     spawn_location = Vec.new(10, 30),
     map_offset = Vec.new(30, 0),
+    allowed_cw_bits = 1,
+
+    build_enemies = function()
+      return {
+        SpiderEnemy:new({
+          pos = Vec.new(26 * TILE_SIZE, TILE_SIZE),
+          max_len = 6,
+          left_sign = 261,
+        })
+      }
+    end
   },
 }
 
-function LEVELS.init(id)
+function LEVELS.enter(id)
   EFFECTS = {}
   ENEMIES = {}
 
@@ -647,6 +666,10 @@ function LEVELS.init(id)
   end
 
   LEVEL = id
+end
+
+function LEVELS.next()
+  LEVELS.enter(LEVEL + 1)
 end
 
 function LEVELS.map_offset()
@@ -661,6 +684,10 @@ function LEVELS.map_offset()
   end
 
   return LEVELS[LEVEL].map_offset:add(offset)
+end
+
+function LEVELS.allowed_cw_bits()
+  return LEVELS[LEVEL].allowed_cw_bits
 end
 
 ---------------
@@ -682,7 +709,7 @@ FLAGS = {
 function game_init()
   CW.toggle(BITS.GRAVITY)
   CW.toggle(BITS.COLLISION)
-  LEVELS.init(1)
+  LEVELS.enter(1)
 end
 
 function find_tiles_below_collider()
@@ -915,8 +942,9 @@ function player_update(delta)
   if fget(game_mget(player_occupied_tile), FLAGS.IS_WIN) then
     if not UI.TRANSITION then
       music(TRACKS.VICTORY, -1, -1, false)
+
       UI.enter(function ()
-        LEVEL = LEVEL + 1
+        LEVELS.next()
       end)
     end
   end
@@ -924,8 +952,7 @@ function player_update(delta)
   -- Check if outside of map
   if not Player.is_dead then
     -- We're allowing player to go _just slightly_ outside the map to account
-    -- for "creative solutions" like jumping outside-and-back-inside the map
-
+    -- for "creative solutions" like jumping outside-the-map-and-back-again
     local allowed_offset = 25
 
     local player_is_within_map =
@@ -1055,23 +1082,35 @@ UI = {
     [2] = {
       update = function()
         if btnp(4) then
-          if CW.is_set(UI.VARS.SEL_CWORD_BIT) then
-            AUDIO.play_note(0, "D#5", 2, 10)
-            AUDIO.play_note(0, "C#5", 2, 10)
+          if LEVELS.allowed_cw_bits() == 0 then
+            AUDIO.play_note(0, "D#5", 4, 12)
           else
-            AUDIO.play_note(0, "C#5", 2, 10)
-            AUDIO.play_note(0, "D#5", 2, 10)
-          end
+            if CW.is_set(UI.VARS.SEL_CWORD_BIT) then
+              AUDIO.play_note(0, "D#5", 2, 10)
+              AUDIO.play_note(0, "C#5", 2, 10)
+            else
+              AUDIO.play_note(0, "C#5", 2, 10)
+              AUDIO.play_note(0, "D#5", 2, 10)
+            end
 
-          CW.toggle(UI.VARS.SEL_CWORD_BIT)
+            CW.toggle(UI.VARS.SEL_CWORD_BIT)
+          end
         end
 
         if btnp(6) then
-          UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT - 1) % 8
+          if LEVELS.allowed_cw_bits() == 0 then
+            AUDIO.play_note(0, "D#5", 4, 12)
+          else
+            UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT - 1) % LEVELS.allowed_cw_bits()
+          end
         end
 
         if btnp(7) then
-          UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT + 1) % 8
+          if LEVELS.allowed_cw_bits() == 0 then
+            AUDIO.play_note(0, "D#5", 4, 12)
+          else
+            UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT + 1) % LEVELS.allowed_cw_bits()
+          end
         end
       end,
     },
