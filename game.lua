@@ -786,6 +786,18 @@ end
 function Player:update(delta)
   self:update_physics(delta)
 
+  if self.is_dead then
+    -- Simulate tombstone's friction
+    if self.vel.y > 0 and math.abs(self.vel.y) < 5 then
+      self.vel.y = self.vel.y * 2
+    end
+
+    self.vel.x = self.vel.x / 1.1
+
+    -- Intentional fall-through: even if player's dead, let them win using
+    -- tombstone drifting (i.e. tombstone touching the winning flag)
+  end
+
   local touched_tile = self
     :collider_center()
     :mul(1 / TILE_SIZE)
@@ -968,13 +980,6 @@ LEVELS = {
           left_sign = 258,
           right_sign = 256,
         }),
-
-        SpiderEnemy:new({
-          pos = Vec.new(8 * TILE_SIZE, 10 * TILE_SIZE),
-          max_len = 6,
-          left_sign = 258,
-          right_sign = 256,
-        })
       }
     end,
   },
@@ -990,7 +995,7 @@ LEVELS = {
           pos = Vec.new(26 * TILE_SIZE, TILE_SIZE),
           max_len = 6,
           left_sign = 261,
-        })
+        }),
       }
     end
   },
@@ -1007,7 +1012,7 @@ LEVELS = {
           max_len = 16,
           left_sign = nil,
           right_sign = nil,
-        })
+        }),
       }
     end
   },
