@@ -224,12 +224,13 @@ end
 ---- HUD ----
 -------------
 
+HUD_HEIGHT = 24
+
 function hud_render()
-  local hud_h = 24
-  local hud_y = SCR_HEIGHT - hud_h
+  local hud_y = SCR_HEIGHT - HUD_HEIGHT
 
   function render_background()
-    rect(0, hud_y, SCR_WIDTH, hud_h, 15)
+    rect(0, hud_y, SCR_WIDTH, HUD_HEIGHT, 15)
   end
 
   function render_control_word_register()
@@ -237,7 +238,7 @@ function hud_render()
     local blank_space_width = 40
 
     local bit_x = (SCR_WIDTH - 8 * 2 * CHR_WIDTH - blank_space_width) / 2
-    local bit_y = hud_y + (hud_h - CHR_HEIGHT) / 2 - 3
+    local bit_y = hud_y + (HUD_HEIGHT - CHR_HEIGHT) / 2 - 3
 
     for bit_idx = 0,7 do
       if bit_idx == 4 then
@@ -576,7 +577,9 @@ SPRITES = {
     RUN_1 = 6,
     RUN_2 = 8,
     IN_AIR = 10,
-    DEAD = 12
+    DEAD = 12,
+    OVERFLOW_ARROW_1 = 272,
+    OVERFLOW_ARROW_2 = 273,
   },
 
   POOF = {
@@ -969,6 +972,72 @@ function Player:render()
     2,
     2
   )
+
+  -- When player's outside the map, render an array indicating player's
+  -- position for user
+  if TICKS % 20 > 10 then
+    local min_x = -TILE_SIZE
+    local min_y = -TILE_SIZE
+    local max_x = SCR_WIDTH - 2 * TILE_SIZE
+    local max_y = SCR_HEIGHT - HUD_HEIGHT - 2 * TILE_SIZE
+
+    local overflows_top = self.pos.y < min_y
+    local overflows_right = self.pos.x > max_x
+    local overflows_bottom = self.pos.y > max_y
+    local overflows_left = self.pos.x < min_x
+
+    if overflows_top or overflows_right or overflows_bottom or overflows_left then
+      local dir
+
+      if overflows_top then
+        if overflows_right then
+          dir = 2
+        elseif overflows_left then
+          dir = 7
+        else
+          dir = 0
+        end
+      elseif overflows_bottom then
+        if overflows_right then
+          dir = 3
+        elseif overflows_left then
+          dir = 5
+        else
+          dir = 4
+        end
+      else
+        if overflows_right then
+          dir = 2
+        else
+          dir = 6
+        end
+      end
+
+      local arrow_id
+      local arrow_rotate
+
+      if dir % 2 == 0 then
+        arrow_id = SPRITES.PLAYER.OVERFLOW_ARROW_1
+        arrow_rotate = math.ceil(dir / 2)
+      else
+        arrow_id = SPRITES.PLAYER.OVERFLOW_ARROW_2
+        arrow_rotate = math.ceil((dir - 1) / 2)
+      end
+
+      local arrow_x = math.clamp(self.pos.x, min_x, max_x) + TILE_SIZE
+      local arrow_y = math.clamp(self.pos.y, min_y, max_y) + TILE_SIZE
+
+      spr(
+        arrow_id,
+        arrow_x,
+        arrow_y,
+        0,
+        1,
+        0,
+        arrow_rotate
+      )
+    end
+  end
 end
 
 PLAYER = Player:new()
@@ -1850,6 +1919,8 @@ TESTS()
 -- 003:eeeeeee0eeccceefeceeecefecccccefeceeecefeceeecefeeeeeeef0fffffff
 -- 004:eeeeeee0eeecccefeeceeeefeeeceeefeeeeceefeccceeefeeeeeeef0fffffff
 -- 005:eeeeeee0ecccccefeeeeceefeeeceeefeeceeeefecccccefeeeeeeef0fffffff
+-- 016:0000000000044000004444000444444000044200000442000004420000022000
+-- 017:0000000000044440000044400004444000444240044420000042000000200000
 -- </SPRITES>
 
 -- <MAP>
