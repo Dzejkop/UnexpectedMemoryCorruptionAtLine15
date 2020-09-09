@@ -989,7 +989,7 @@ LEVELS = {
       return {
         SpiderEnemy:new({
           pos = Vec.new(2 * TILE_SIZE, TILE_SIZE),
-          max_len = 6,
+          max_len = 16,
           left_sign = 258,
           right_sign = 256,
         }),
@@ -1006,7 +1006,7 @@ LEVELS = {
       return {
         SpiderEnemy:new({
           pos = Vec.new(26 * TILE_SIZE, TILE_SIZE),
-          max_len = 6,
+          max_len = 16,
           left_sign = 261,
         }),
       }
