@@ -502,7 +502,7 @@ end
 
 function SpiderEnemy:update()
   if self.state == SPIDER_ENEMY.STATES.LOWERING then
-    if TICKS % 10 == 0 then
+    if TICKS % 5 == 0 then
       self.len = self.len + 1
     end
 
