@@ -1,20 +1,28 @@
----------------
--- CONSTANTS --
+-------------------------
+---- Debug constants ----
+-------------------------
+
+local DBG_ALL_BITS_ALLOWED = false
+local DBG_INIT_LEVEL = 1
+
+-------------------
+---- Constants ----
+-------------------
 
 -- TIC-80's screen width, in pixels
-SCR_WIDTH = 240
+local SCR_WIDTH = 240
 
 -- TIC-80's screen height, in pixels
-SCR_HEIGHT = 136
+local SCR_HEIGHT = 136
 
 -- TIC-80 default font's char width, in pixels
-CHR_WIDTH = 6
+local CHR_WIDTH = 6
 
 -- TIC-80 default font's char height, in pixels
-CHR_HEIGHT = 6
+local CHR_HEIGHT = 6
 
 -- Width of a single tile
-TILE_SIZE = 8
+local TILE_SIZE = 8
 
 local BITS = {
   GRAVITY = 0,
@@ -25,8 +33,6 @@ local BITS = {
   SHIFT_POS_Y = 5,
 }
 
-ALL_BITS_ALLOWED = false
-
 local TRACKS = {
   VICTORY = 0,
 }
@@ -36,13 +42,27 @@ local SFX = {
 }
 
 -- first 3 tracks for music, last channel for sfx
-SFX_CHANNEL = 3
+local SFX_CHANNEL = 3
 
-----------------
--- GAME STATE --
+--------------------
+---- GAME STATE ----
+--------------------
 
 -- Ticks since the game started
-TICKS = 0
+local TICKS = 0
+
+-- Determines how long (in seconds) the player can hold the
+-- jump button, to have reduced gravity
+local MAX_GRAVITY_REDUCT_TIME = 0.2
+
+local PHYSICS = {
+  GRAVITY_FORCE = 520,
+  REDUCED_GRAVITY = 170,
+  REVERSED_GRAVITY_FORCE = -10,
+  PLAYER_ACCELERATION = 200,
+  PLAYER_DECCELERATION = 600,
+  PLAYER_JUMP_FORCE = 120
+}
 
 --------------
 ---- Math ----
@@ -65,9 +85,10 @@ end
 Vec = {}
 
 function Vec.new(x, y)
-  local v = { x = x, y = y }
-  setmetatable(v, { __index = Vec })
-  return v
+  return setmetatable({
+    x = x,
+    y = y,
+  }, { __index = Vec })
 end
 
 function Vec.one()
@@ -173,7 +194,7 @@ CW = {
   observers = {
     function(bit_idx)
       if bit_idx == BITS.COLLISION then
-        Player.is_on_ground = false
+        PLAYER.is_on_ground = false
       elseif bit_idx == BITS.DISENGAGE_MALEVOLENT_ORGANISM then
         disengage_malevolent_organism()
       end
@@ -287,7 +308,7 @@ function hud_render()
 
   render_background()
 
-  if Player.is_dead then
+  if PLAYER.is_dead then
     render_restart()
   else
     render_control_word_register()
@@ -298,19 +319,73 @@ end
 ---- Enemies ----
 -----------------
 
--- Currently alive enemies
-ENEMIES = {}
+Enemies = {}
+
+function Enemies:new()
+  return setmetatable({
+    -- Currently alive enemies
+    active_enemies = {},
+  }, { __index = Enemies })
+end
+
+function Enemies:clear()
+  self.active_enemies = {}
+end
+
+function Enemies:add(enemy)
+  table.insert(self.active_enemies, enemy)
+end
+
+function Enemies:add_many(enemies)
+  for _, enemy in ipairs(enemies) do
+    self:add(enemy)
+  end
+end
+
+function Enemies:update()
+  for _, enemy in ipairs(self.active_enemies) do
+    if not enemy.paused then
+      if enemy.update then
+        enemy:update()
+      end
+    end
+
+    -- Check collision with player
+    if enemy.collision_radius then
+      x1 = enemy.pos.x
+      y1 = enemy.pos.y
+      x2 = PLAYER.pos.x
+      y2 = PLAYER.pos.y
+
+      distance = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
+
+      if distance < enemy:collision_radius() then
+        if not PLAYER.is_dead then
+          PLAYER:kill()
+        end
+      end
+    end
+  end
+end
+
+function Enemies:render()
+  for _, enemy in ipairs(self.active_enemies) do
+    if enemy.render then
+      enemy:render()
+    end
+  end
+end
 
 function disengage_malevolent_organism()
-  if #ENEMIES == 0 then
+  if #ENEMIES.active_enemies == 0 then
     return
   end
 
   -- Pick one
-  enemy_idx = math.random(1, #ENEMIES)
+  enemy_idx = math.random(1, #ENEMIES.active_enemies)
 
   -- Change activity
-  for i, v in ipairs(ENEMIES) do
+  for i, v in ipairs(ENEMIES.active_enemies) do
     if i == enemy_idx then
       v.paused = true
     else
@@ -319,11 +394,11 @@ function disengage_malevolent_organism()
   end
 end
 
+ENEMIES = Enemies:new()
+
 -----------------------------
 ---- Enemies / Lost Soul ----
 -----------------------------
-
-LostSoulEnemy = {}
 
 LOST_SOUL_ENEMY = {
   SPRITES = {
@@ -336,6 +411,8 @@ LOST_SOUL_ENEMY = {
     FLYING = 1,
   },
 }
+
+LostSoulEnemy = {}
 
 function LostSoulEnemy:new(props)
   return setmetatable({
@@ -389,8 +466,6 @@ end
 ---- Enemies / Spider ----
 --------------------------
 
-SpiderEnemy = {}
-
 SPIDER_ENEMY = {
   SPRITES = {
     DEFAULT = 242,
@@ -401,6 +476,8 @@ SPIDER_ENEMY = {
     CRAWLING = 2,
   },
 }
+
+SpiderEnemy = {}
 
 function SpiderEnemy:new(props)
   return setmetatable({
@@ -501,7 +578,45 @@ SPRITES = {
 ---- Visual Effects ----
 ------------------------
 
-EFFECTS = {}
+Effects = {}
+
+function Effects:new()
+  return setmetatable({
+    -- Currently active effects
+    active_effects = {},
+  }, { __index = Effects })
+end
+
+function Effects:clear()
+  self.active_effects = {}
+end
+
+function Effects:add(effect)
+  table.insert(self.active_effects, effect)
+end
+
+function Effects:update(delta)
+  local removed_effects = 0
+
+  for i, effect in ipairs(self.active_effects) do
+    if effect:update(delta) then
+      table.remove(self.active_effects, i - removed_effects)
+      removed_effects = removed_effects + 1
+    end
+  end
+end
+
+function Effects:render()
+  for _, effect in ipairs(self.active_effects) do
+    effect:render()
+  end
+end
+
+local EFFECTS = Effects:new()
+
+--------------------------------
+---- Visual Effects / Utils ----
+--------------------------------
 
 function polar_to_cartesian(r, theta)
   return Vec.new(r * math.cos(theta), r * math.sin(theta))
@@ -513,7 +628,7 @@ end
 
 Poof = {}
 
-function Poof.regular(pos)
+function Poof:regular(pos)
   return setmetatable({
     pos = pos,
     sprites = SPRITES.POOF,
@@ -526,7 +641,7 @@ function Poof.regular(pos)
   }, { __index = Poof })
 end
 
-function Poof.small(pos)
+function Poof:small(pos)
   return setmetatable({
     pos = pos,
     sprites = SPRITES.POOF,
@@ -539,7 +654,7 @@ function Poof.small(pos)
   }, { __index = Poof })
 end
 
-function Poof.update(self, delta)
+function Poof:update(delta)
   self.timer = self.timer + delta
   local time_boundary = self.max_life / #self.sprites
 
@@ -561,7 +676,7 @@ function spr_center(spr_idx, x, y, w, h, color_key)
   spr(spr_idx, x - (w / 2), y - (h / 2), color_key)
 end
 
-function Poof.render(self)
+function Poof:render()
   local current_sprite = self.sprites[self.current_sprite]
   local arm_angle = math.pi * 2 / self.num_of_arms
 
@@ -583,23 +698,38 @@ end
 ---- Player ----
 ----------------
 
--- determines how long (in seconds) the player can hold the
--- jump button, to have reduced gravity
-MAX_GRAVITY_REDUCT_TIME = 0.2
-
-Player = {
-  pos = Vec.new(0, 0),
-  vel = Vec.new(0, 0),
-  current_sprite = SPRITES.PLAYER.IDLE,
-  speed = 100,
-  collider = {
-    offset = Vec.new(2, 3),
-    size = Vec.new(11, 13)
-  },
-  inverse_air_time = MAX_GRAVITY_REDUCT_TIME,
-  is_on_ground = false,
-  is_dead = false
+PLAYER_RUNNING_ANIMATION = {
+  switch_every = 0.2, -- seconds
+  timer = 0,
+  last_change_at = 0,
+  current = 1,
+  frames = { SPRITES.PLAYER.RUN_1, SPRITES.PLAYER.RUN_2 }
 }
+
+PLAYER_IDLING_ANIMATION = {
+  switch_every = 0.75, -- seconds
+  last_change_at = 0,
+  current = 1,
+  frames = { SPRITES.PLAYER.IDLE_1, SPRITES.PLAYER.IDLE_2 }
+}
+
+Player = {}
+
+function Player:new()
+  return setmetatable({
+    pos = Vec.new(0, 0),
+    vel = Vec.new(0, 0),
+    current_sprite = SPRITES.PLAYER.IDLE,
+    speed = 100,
+    collider = {
+      offset = Vec.new(2, 3),
+      size = Vec.new(11, 13)
+    },
+    inverse_air_time = MAX_GRAVITY_REDUCT_TIME,
+    is_on_ground = false,
+    is_dead = false,
+  }, { __index = Player })
+end
 
 function Player:restart(spawn_location)
   self.pos = spawn_location
@@ -609,66 +739,220 @@ function Player:restart(spawn_location)
   self.is_dead = false
 end
 
-function Player.collider_bottom_center(self)
+function Player:collider_bottom_center()
   return self:collider_bottom_left()
     :add(Vec.right():mul(self.collider.size.x / 2))
 end
 
-function Player.collider_center(self)
+function Player:collider_center()
   return self.pos
     :add(self.collider.offset)
     :add(self.collider.size:mul(0.5))
 end
 
-function Player.collider_bottom_right(self)
+function Player:collider_bottom_right()
   return self.pos
     :add(self.collider.offset)
     :add(self.collider.size)
 end
 
-function Player.collider_bottom_left(self)
+function Player:collider_bottom_left()
   return self.pos
     :add(self.collider.offset)
     :add(Vec.down():mul(self.collider.size.y))
 end
 
-function Player.collider_top_right(self)
+function Player:collider_top_right()
   return self.pos
     :add(self.collider.offset)
     :add(Vec.right():mul(self.collider.size.x))
 end
 
-function Player.collider_top_left(self)
+function Player:collider_top_left()
   return self.pos
     :add(self.collider.offset)
     :add(Vec.right():mul(self.collider.size.x))
 end
 
-function Player.kill(self)
+function Player:kill()
   AUDIO.play_note(1, "C#3", 64, 10)
 
   self.is_dead = true
   self.current_sprite = SPRITES.PLAYER.DEAD
 
-  table.insert(EFFECTS, Poof.regular(self:collider_center()))
+  EFFECTS:add(Poof:regular(self:collider_center()))
 end
 
-function Player.turn(self)
-  if self.vel.x > 0.1 then
-    return 1
-  elseif self.vel.x < -0.1 then
-    return -1
-  else
-    return 0
+function Player:update(delta)
+  self:update_physics(delta)
+
+  local touched_tile = self
+    :collider_center()
+    :mul(1 / TILE_SIZE)
+    :floor()
+
+  -- Check if player touches spikes
+  if fget(game_mget(touched_tile), FLAGS.IS_HURT) then
+    if not self.is_dead then
+      self:kill()
+    end
+  end
+
+  -- Check if player touches victory flag
+  if fget(game_mget(touched_tile), FLAGS.IS_WIN) then
+    if not UI.TRANSITION then
+      music(TRACKS.VICTORY, -1, -1, false)
+
+      UI.enter(function ()
+        LEVELS.start_next()
+      end)
+    end
+  end
+
+  -- Check if player is outside the map
+  if not self.is_dead then
+    -- We're allowing player to go _just slightly_ outside the map to account
+    -- for "creative solutions" like jumping outside-and-back-inside the map
+    local allowed_offset = 50
+
+    local within_map =
+          self.pos.x >= -allowed_offset
+      and self.pos.y >= -allowed_offset
+      and self.pos.x < SCR_WIDTH + allowed_offset
+      and self.pos.y < SCR_HEIGHT + allowed_offset
+
+    if not within_map then
+      self:kill()
+    end
+  end
+
+  -- Animations
+  if not self.is_dead then
+    if not self.is_on_ground then
+      self.current_sprite = SPRITES.PLAYER.IN_AIR
+    elseif math.abs(self.vel.x) > 1 then
+      PLAYER_RUNNING_ANIMATION.timer = PLAYER_RUNNING_ANIMATION.timer + (0.05 * delta * math.abs(self.vel.x))
+
+      if PLAYER_RUNNING_ANIMATION.timer - PLAYER_RUNNING_ANIMATION.last_change_at > PLAYER_RUNNING_ANIMATION.switch_every then
+        PLAYER_RUNNING_ANIMATION.current = 1 + ((PLAYER_RUNNING_ANIMATION.current + 2) % #PLAYER_RUNNING_ANIMATION.frames)
+        PLAYER_RUNNING_ANIMATION.last_change_at = PLAYER_RUNNING_ANIMATION.timer
+      end
+
+      self.current_sprite = PLAYER_RUNNING_ANIMATION.frames[PLAYER_RUNNING_ANIMATION.current]
+    else
+      if T - PLAYER_IDLING_ANIMATION.last_change_at > PLAYER_IDLING_ANIMATION.switch_every then
+        PLAYER_IDLING_ANIMATION.current = 1 + ((PLAYER_IDLING_ANIMATION.current + 2) % #PLAYER_IDLING_ANIMATION.frames)
+        PLAYER_IDLING_ANIMATION.last_change_at = T
+      end
+
+      self.current_sprite = PLAYER_IDLING_ANIMATION.frames[PLAYER_IDLING_ANIMATION.current]
+    end
   end
 end
+
+function Player:update_physics(delta)
+  -- Apply gravity
+  if CW.is_set(BITS.GRAVITY) then
+    if not self.is_on_ground then
+      if btn(BUTTONS.UP) and self.inverse_air_time > 0 then
+        self.vel.y = self.vel.y + PHYSICS.REDUCED_GRAVITY * delta
+      else
+        self.vel.y = self.vel.y + PHYSICS.GRAVITY_FORCE * delta
+      end
+
+      self.inverse_air_time = self.inverse_air_time - delta
+    else
+      self.inverse_air_time = MAX_GRAVITY_REDUCT_TIME
+    end
+  else
+    self.vel.y = self.vel.y + PHYSICS.REVERSED_GRAVITY_FORCE * delta
+  end
+
+  local is_colliding_horizontally = false
+
+  if CW.is_set(BITS.COLLISION) then
+    is_colliding_horizontally = collisions_update()
+  end
+
+  if not self.is_dead then
+    local steering_factor
+
+    if self.is_on_ground then
+      steering_factor = 1.0
+    else
+      if CW.is_set(BITS.GRAVITY) then
+        steering_factor = 0.6
+      else
+        steering_factor = 0.1
+      end
+    end
+
+    if btn(BUTTONS.RIGHT) then
+      self.vel.x = math.clamp(self.vel.x + PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
+    elseif btn(BUTTONS.LEFT) then
+      self.vel.x = math.clamp(self.vel.x - PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
+    else
+      if self.is_on_ground then
+        if math.abs(self.vel.x) > 1 then
+          local sign = self.vel.x / math.abs(self.vel.x)
+          self.vel.x = self.vel.x - PHYSICS.PLAYER_DECCELERATION * sign * delta
+
+          -- at 10 pixels/s reduce to 0
+          if math.abs(self.vel.x) < 10 then
+            self.vel.x = 0
+          end
+        end
+      end
+    end
+
+    -- jump
+    if self.is_on_ground and btnp(BUTTONS.UP) then
+      self.vel = self.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
+      self.is_on_ground = false
+
+      AUDIO.play_note(SFX.JUMP, "C#5", 16, 10)
+      EFFECTS:add(Poof:small(self:collider_bottom_center()))
+    end
+  end
+
+  if math.abs(self.vel.x) > 0 and is_colliding_horizontally then
+    self.vel.x = 0
+  end
+
+  if self.vel.y > 0 and self.is_on_ground then
+    self.vel.y = 0
+  end
+
+  self.pos = self.pos:add(self.vel:mul(delta))
+end
+
+function Player:render()
+  local flip = 0
+
+  if self.vel.x < -0.01 and not self.is_dead then
+    flip = 1
+  end
+
+  spr(
+    self.current_sprite,
+    self.pos.x,
+    self.pos.y,
+    0,
+    1,
+    flip,
+    0,
+    2,
+    2
+  )
+end
+
+PLAYER = Player:new()
 
 ----------------
 ---- Levels ----
 ----------------
 
 LEVEL = 1
-FIRST_LEVEL = 1
 
 LEVELS = {
   [1] = {
@@ -680,6 +964,13 @@ LEVELS = {
       return {
         SpiderEnemy:new({
           pos = Vec.new(2 * TILE_SIZE, TILE_SIZE),
+          max_len = 6,
+          left_sign = 258,
+          right_sign = 256,
+        }),
+
+        SpiderEnemy:new({
+          pos = Vec.new(8 * TILE_SIZE, 10 * TILE_SIZE),
           max_len = 6,
           left_sign = 258,
           right_sign = 256,
@@ -733,16 +1024,16 @@ LEVELS = {
 }
 
 function LEVELS.start(id)
-  EFFECTS = {}
-  ENEMIES = {}
+  EFFECTS:clear()
+  ENEMIES:clear()
 
   local level = LEVELS[id]
 
   if level.build_enemies then
-    ENEMIES = level.build_enemies()
+    ENEMIES:add_many(level.build_enemies())
   end
 
-  Player:restart(level.spawn_location)
+  PLAYER:restart(level.spawn_location)
   CW:restart()
 
   LEVEL = id
@@ -771,9 +1062,10 @@ function LEVELS.map_offset()
 end
 
 function LEVELS.allowed_cw_bits()
-  if ALL_BITS_ALLOWED then
+  if DBG_ALL_BITS_ALLOWED then
     return 8
   end
+
   return LEVELS[LEVEL].allowed_cw_bits
 end
 
@@ -795,16 +1087,16 @@ FLAGS = {
 }
 
 function find_tiles_below_collider()
-  local below_left = Player:collider_bottom_left()
+  local below_left = PLAYER:collider_bottom_left()
     :mul(1 / TILE_SIZE)
     :floor()
 
-  local below_center = Player:collider_center()
-    :add(Vec.down():mul(Player.collider.size.y / 2))
+  local below_center = PLAYER:collider_center()
+    :add(Vec.down():mul(PLAYER.collider.size.y / 2))
     :mul(1 / TILE_SIZE)
     :floor()
 
-  local below_right = Player:collider_bottom_right()
+  local below_right = PLAYER:collider_bottom_right()
     :mul(1 / TILE_SIZE)
     :floor()
 
@@ -812,64 +1104,23 @@ function find_tiles_below_collider()
 end
 
 function find_tiles_in_front_of_player()
-  local forward = Player:collider_center()
+  local forward = PLAYER:collider_center()
     :mul(1 / TILE_SIZE)
-    :add(Player.vel:x_vec():normalized())
+    :add(PLAYER.vel:x_vec():normalized())
 
   return { forward }
 end
 
 function find_tiles_above_player()
-  local top_left = Player:collider_top_left()
+  local top_left = PLAYER:collider_top_left()
     :mul(1 / TILE_SIZE)
     :floor()
-  local top_right = Player:collider_top_right()
+
+  local top_right = PLAYER:collider_top_right()
     :mul(1 / TILE_SIZE)
     :floor()
 
   return { top_left, top_right }
-end
-
-function game_update(delta)
-  -- update effects
-  for i, effect in ipairs(EFFECTS) do
-    if effect:update(delta) then
-      table.remove(EFFECTS, i)
-    end
-  end
-
-  -- go through enemies
-  for _, enemy in ipairs(ENEMIES) do
-    if not enemy.paused then
-      if enemy.update then
-        enemy:update()
-      end
-    end
-
-    if enemy.render then
-      enemy:render()
-    end
-
-    -- check collision with player
-    if enemy.collision_radius then
-      x1 = enemy.pos.x
-      y1 = enemy.pos.y
-      x2 = Player.pos.x
-      y2 = Player.pos.y
-
-      distance = math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))
-
-      if distance < enemy:collision_radius() then
-        if not Player.is_dead then
-          Player:kill()
-        end
-      end
-    end
-  end
-
-  if Player then
-    player_update(delta)
-  end
 end
 
 function game_mget(vec)
@@ -893,13 +1144,13 @@ function collisions_update()
   local tile_below_player = filter(iter(tiles_below_player), is_tile_ground)()
 
   if tile_below_player ~= nil then
-    if not Player.is_on_ground then
-      Player.vel.y = 0
-      Player.is_on_ground = true
-      Player.pos.y = (tile_below_player.y - 2) * TILE_SIZE
+    if not PLAYER.is_on_ground then
+      PLAYER.vel.y = 0
+      PLAYER.is_on_ground = true
+      PLAYER.pos.y = (tile_below_player.y - 2) * TILE_SIZE
     end
-  elseif Player.is_on_ground then
-    Player.is_on_ground = false
+  elseif PLAYER.is_on_ground then
+    PLAYER.is_on_ground = false
   end
 
   -- collisions to the sides
@@ -912,194 +1163,27 @@ function collisions_update()
   local tiles_above_player = find_tiles_above_player()
   local tile_above_player = filter(iter(tiles_above_player), is_tile_ground)()
 
-  if Player.vel.y < 0 and tile_above_player ~= nil then
-    Player.vel.y = 0
+  if PLAYER.vel.y < 0 and tile_above_player ~= nil then
+    PLAYER.vel.y = 0
   end
 
   return is_colliding_horizontally
 end
 
-local PHYSICS = {
-  GRAVITY_FORCE = 520,
-  REDUCED_GRAVITY = 170,
-  REVERSED_GRAVITY_FORCE = -10,
-  PLAYER_ACCELERATION = 200,
-  PLAYER_DECCELERATION = 600,
-  PLAYER_JUMP_FORCE = 120
-}
-
-function update_player_physics(delta)
-  -- apply gravity
-  if CW.is_set(BITS.GRAVITY) then
-    if not Player.is_on_ground then
-      if btn(BUTTONS.UP) and Player.inverse_air_time > 0 then
-        Player.vel.y = Player.vel.y + PHYSICS.REDUCED_GRAVITY * delta
-      else
-        Player.vel.y = Player.vel.y + PHYSICS.GRAVITY_FORCE * delta
-      end
-
-      Player.inverse_air_time = Player.inverse_air_time - delta
-    else
-      Player.inverse_air_time = MAX_GRAVITY_REDUCT_TIME
-    end
-  else
-    Player.vel.y = Player.vel.y + PHYSICS.REVERSED_GRAVITY_FORCE * delta
-  end
-
-  local is_colliding_horizontally = false
-
-  if CW.is_set(BITS.COLLISION) then
-    is_colliding_horizontally = collisions_update()
-  end
-
-  if not Player.is_dead then
-    local steering_factor
-
-    if Player.is_on_ground then
-      steering_factor = 1.0
-    else
-      if CW.is_set(BITS.GRAVITY) then
-        steering_factor = 0.6
-      else
-        steering_factor = 0.1
-      end
-    end
-
-    if btn(BUTTONS.RIGHT) then
-      Player.vel.x = math.clamp(Player.vel.x + PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -Player.speed, Player.speed)
-    elseif btn(BUTTONS.LEFT) then
-      Player.vel.x = math.clamp(Player.vel.x - PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -Player.speed, Player.speed)
-    else
-      if Player.is_on_ground then
-        if math.abs(Player.vel.x) > 1 then
-          local sign = Player.vel.x / math.abs(Player.vel.x)
-          Player.vel.x = Player.vel.x - PHYSICS.PLAYER_DECCELERATION * sign * delta
-          if math.abs(Player.vel.x) < 10 then -- at 10 pixels/s reduce to 0
-            Player.vel.x = 0
-          end
-        end
-      end
-    end
-
-    -- jump
-    if Player.is_on_ground and btnp(BUTTONS.UP) then
-      Player.vel = Player.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
-      Player.is_on_ground = false
-      AUDIO.play_note(SFX.JUMP, "C#5", 16, 10)
-      table.insert(EFFECTS, Poof.small(Player:collider_bottom_center()))
-    end
-  end
-
-  if math.abs(Player.vel.x) > 0 and is_colliding_horizontally then
-    Player.vel.x = 0
-  end
-
-  if Player.vel.y > 0 and Player.is_on_ground then
-    Player.vel.y = 0
-  end
-
-  Player.pos = Player.pos:add(Player.vel:mul(delta))
-end
-
-local run_animation_state = {
-  switch_every = 0.2, -- seconds
-  timer = 0,
-  last_change_at = 0,
-  current = 1,
-  frames = { SPRITES.PLAYER.RUN_1, SPRITES.PLAYER.RUN_2 }
-}
-
-local idle_animation_state = {
-  switch_every = 0.75, -- seconds
-  last_change_at = 0,
-  current = 1,
-  frames = { SPRITES.PLAYER.IDLE_1, SPRITES.PLAYER.IDLE_2 }
-}
-
-function player_update(delta)
-  update_player_physics(delta)
-
-  -- Check is colliding with flag
-  local player_occupied_tile = Player
-    :collider_center()
-    :mul(1 / TILE_SIZE)
-    :floor()
-
-  if not Player.is_dead then
-    if fget(game_mget(player_occupied_tile), FLAGS.IS_HURT) then
-      Player:kill()
-    end
-  end
-
-  if fget(game_mget(player_occupied_tile), FLAGS.IS_WIN) then
-    if not UI.TRANSITION then
-      music(TRACKS.VICTORY, -1, -1, false)
-
-      UI.enter(function ()
-        LEVELS.start_next()
-      end)
-    end
-  end
-
-  -- Check if outside of map
-  if not Player.is_dead then
-    -- We're allowing player to go _just slightly_ outside the map to account
-    -- for "creative solutions" like jumping outside-and-back-inside the map
-
-    local allowed_offset = 50
-
-    local player_is_within_map =
-          Player.pos.x >= -allowed_offset
-      and Player.pos.y >= -allowed_offset
-      and Player.pos.x < SCR_WIDTH + allowed_offset
-      and Player.pos.y < SCR_HEIGHT + allowed_offset
-
-    if not player_is_within_map then
-      Player:kill()
-    end
-  end
-
-  -- Animations
-  if not Player.is_dead then
-    if not Player.is_on_ground then
-      Player.current_sprite = SPRITES.PLAYER.IN_AIR
-    elseif math.abs(Player.vel.x) > 1 then
-      run_animation_state.timer = run_animation_state.timer + (0.05 * delta * math.abs(Player.vel.x))
-
-      if run_animation_state.timer - run_animation_state.last_change_at > run_animation_state.switch_every then
-        run_animation_state.current = 1 + ((run_animation_state.current + 2) % #run_animation_state.frames)
-        run_animation_state.last_change_at = run_animation_state.timer
-      end
-
-      Player.current_sprite = run_animation_state.frames[run_animation_state.current]
-    else
-      if T - idle_animation_state.last_change_at > idle_animation_state.switch_every then
-        idle_animation_state.current = 1 + ((idle_animation_state.current + 2) % #idle_animation_state.frames)
-        idle_animation_state.last_change_at = T
-      end
-
-      Player.current_sprite = idle_animation_state.frames[idle_animation_state.current]
-    end
-  end
+function game_update(delta)
+  EFFECTS:update(delta)
+  ENEMIES:update()
+  PLAYER:update(delta)
 end
 
 function game_render()
   local offset = LEVELS.map_offset()
+
   map(offset.x, offset.y)
 
-  -- needs to be made persistent between frames
-  local flip = 0
-
-  if Player.vel.x < -0.01 and not Player.is_dead then
-    flip = 1
-  end
-
-  spr(Player.current_sprite, Player.pos.x, Player.pos.y, 0, 1, flip, 0, 2, 2)
-
-  -- render effects
-  for _, effect in ipairs(EFFECTS) do
-    effect:render()
-  end
+  PLAYER:render()
+  ENEMIES:render()
+  EFFECTS:render()
 end
 
 ------------
@@ -1183,7 +1267,7 @@ UI = {
     -- Screen: Game
     [2] = {
       update = function()
-        if Player.is_dead then
+        if PLAYER.is_dead then
           if any_key() then
             LEVELS.restart()
           end
@@ -1275,7 +1359,7 @@ function UI.enter(arg)
 
     UI.TRANSITION = create_transition(function ()
       if screen_idx == 2 then
-        LEVELS.start(FIRST_LEVEL)
+        LEVELS.start(DBG_INIT_LEVEL)
       end
 
       UI.SCREEN = screen_idx
@@ -1335,7 +1419,6 @@ end
 -- UiLabel --
 
 UiLabel = {}
-UiLabel.__index = UiLabel
 
 function UiLabel:new()
   return setmetatable({
