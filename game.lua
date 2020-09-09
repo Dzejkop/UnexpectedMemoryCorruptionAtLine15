@@ -64,6 +64,9 @@ local PHYSICS = {
   PLAYER_JUMP_FORCE = 120
 }
 
+local RESPAWN_COOLDOWN_TICK_COUNTER = 0
+local RESPAWN_COOLDOWN_TICKS = 60 * 4
+
 --------------
 ---- Math ----
 --------------
@@ -310,7 +313,9 @@ function hud_render()
   render_background()
 
   if PLAYER.is_dead then
-    render_restart()
+    if is_respawn_allowed() then
+      render_restart()
+    end
   else
     render_control_word_register()
   end
@@ -826,6 +831,7 @@ function Player:kill()
   self.current_sprite = SPRITES.PLAYER.DEAD
 
   EFFECTS:add(Poof:regular(self:collider_center()))
+  RESPAWN_COOLDOWN_TICK_COUNTER = 0
 end
 
 function Player:width()
@@ -1283,6 +1289,14 @@ FLAGS = {
   IS_HURT = 2
 }
 
+function is_respawn_allowed()
+  RESPAWN_COOLDOWN_TICK_COUNTER = RESPAWN_COOLDOWN_TICK_COUNTER + 1
+  if RESPAWN_COOLDOWN_TICK_COUNTER >= RESPAWN_COOLDOWN_TICKS then
+    return true
+  end
+  return false
+end
+
 function find_tiles_below_collider()
   local below_left = PLAYER:collider_bottom_left()
     :mul(1 / TILE_SIZE)
@@ -1465,7 +1479,7 @@ UI = {
     [2] = {
       update = function()
         if PLAYER.is_dead then
-          if any_key() then
+          if is_respawn_allowed() and any_key() then
             LEVELS.restart()
           end
 
