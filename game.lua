@@ -45,7 +45,7 @@ local SFX_CHANNEL = 3
 
 -- Level where the player gets spawned; useful for debugging purposes
 -- TODO keep it as `1` before deploying
-local FIRST_LEVEL = 5
+local FIRST_LEVEL = 1
 
 --------------------
 ---- GAME STATE ----
@@ -996,8 +996,8 @@ function Player:update(delta)
     end
   end
 
-  -- Check if player touches spikes
-  if fget(game_mget(touched_tile), FLAGS.IS_GROUND) then
+  -- Check if player is inside a wall
+  if CW.is_set(BITS.COLLISION) and fget(game_mget(touched_tile), FLAGS.IS_GROUND) then
     if not self.is_dead then
       self:kill()
     end
