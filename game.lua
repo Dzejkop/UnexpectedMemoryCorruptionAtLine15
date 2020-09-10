@@ -258,6 +258,20 @@ function render_corruption()
       end
     end
   end
+
+  if math.random() < 0.002 then
+    local color_shift = math.random(1, 16)
+    for n=0,16 do
+      local offset = n * 3
+      -- I'm not actually sure, if these are actually RGB in that order, but that doesn't matter
+      local r = peek(0x3fC0 + offset)
+      local g = peek(0x3fC0 + 8 + offset)
+      local b = peek(0x3fC0 + 16 + offset)
+      poke(0x3fC0 + offset, (r + color_shift) % 255)
+      poke(0x3fC0 + 8 + offset, (g + color_shift) % 255)
+      poke(0x3fC0 + 16 + offset, (b + color_shift) % 255)
+    end
+  end
 end
 
 function frame_random()
@@ -285,6 +299,10 @@ function render_corruption_scn(line)
       poke(0x3FFA, math.random(-8, 8))
     end
   end
+
+  -- if frame_random() < 0.025 then
+  --   poke(0x03FC0 + 1, math.random(0, 256))
+  -- end
 end
 
 -------------
