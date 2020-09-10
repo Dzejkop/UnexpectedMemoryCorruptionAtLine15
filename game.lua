@@ -243,14 +243,22 @@ function calc_corruption()
 end
 
 function render_corruption()
+  local CHUNK_SIZE = 96
+  for x=0,SCR_WIDTH,CHUNK_SIZE do
+    for y=0,SCR_HEIGHT,CHUNK_SIZE do
+      if math.random() < 0.01 then
+        local color_offset = math.random(1, 5)
+        for xx=0,CHUNK_SIZE do
+          for yy=0,CHUNK_SIZE do
+            local c = pix(x+xx, y+yy)
+            c = (c + color_offset) % 15
+            pix(x+xx, y+yy, c)
+          end
+        end
+      end
+    end
+  end
 end
-
-CORRUPTION_VFX = {
-  square_offset = {
-    start_pix = 0,
-    end_pix = 0
-  }
-}
 
 function frame_random()
   if not CURRENT_T or CURRENT_T ~= T then
@@ -263,11 +271,18 @@ end
 
 function render_corruption_scn(line)
   local corruption = calc_corruption()
+  poke(0x3FF9, 0)
   poke(0x3FFA, 0)
 
   if corruption > 0.3 then
     if line > 0 and line < 60 and frame_random() < 0.025 then
       poke(0x3FFA, 15)
+    end
+  end
+
+  if corruption > 0.7 then
+    if math.random() < 0.01 then
+      poke(0x3FFA, math.random(-8, 8))
     end
   end
 end
@@ -1961,6 +1976,7 @@ function TIC()
   end
 
   UI.render()
+  render_corruption()
   AUDIO.update()
 
   TICKS = TICKS + 1
