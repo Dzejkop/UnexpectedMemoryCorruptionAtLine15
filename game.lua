@@ -3,7 +3,6 @@
 -------------------------
 
 local DBG_ALL_BITS_ALLOWED = false
-local DBG_INIT_LEVEL = 6
 
 -------------------
 ---- Constants ----
@@ -41,8 +40,12 @@ local SFX = {
   JUMP = 3,
 }
 
--- first 3 tracks for music, last channel for sfx
+-- First 3 tracks for music, last channel for sfx
 local SFX_CHANNEL = 3
+
+-- Level where the player gets spawned; useful for debugging purposes
+-- TODO keep it as `1` before deploying
+local FIRST_LEVEL = 3
 
 --------------------
 ---- GAME STATE ----
@@ -1570,7 +1573,7 @@ function UI.enter(arg)
 
     UI.TRANSITION = create_transition(function ()
       if screen_idx == 2 then
-        LEVELS.start(DBG_INIT_LEVEL)
+        LEVELS.start(FIRST_LEVEL)
       end
 
       UI.SCREEN = screen_idx
