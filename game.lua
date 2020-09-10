@@ -226,6 +226,52 @@ function CW.toggle(bit_idx)
   CW.reg = CW.reg ~ (1 << bit_idx)
 end
 
+
+--------------------
+---- Corruption ----
+--------------------
+
+function calc_corruption()
+  -- local allowed_level_bits = LEVELS.allowed_cw_bits()
+
+  -- local corruption_part = 1.0 / allowed_level_bits
+
+  -- for i=0,allowed_level_bits do
+  -- end
+
+  return 1.0
+end
+
+function render_corruption()
+end
+
+CORRUPTION_VFX = {
+  square_offset = {
+    start_pix = 0,
+    end_pix = 0
+  }
+}
+
+function frame_random()
+  if not CURRENT_T or CURRENT_T ~= T then
+    CURRENT_T = T
+    CURRENT_RAND = math.random()
+  end
+
+  return CURRENT_RAND
+end
+
+function render_corruption_scn(line)
+  local corruption = calc_corruption()
+  poke(0x3FFA, 0)
+
+  if corruption > 0.3 then
+    if line > 0 and line < 60 and frame_random() < 0.025 then
+      poke(0x3FFA, 15)
+    end
+  end
+end
+
 -------------
 ---- HUD ----
 -------------
@@ -1922,6 +1968,7 @@ end
 
 function SCN(line)
   UI.scanline(line)
+  render_corruption_scn(line)
 end
 
 -------------------
