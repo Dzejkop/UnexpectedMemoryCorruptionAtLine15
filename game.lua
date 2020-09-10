@@ -1007,6 +1007,12 @@ function Player:render()
     flip = 1
   end
 
+  if btn(BUTTONS.LEFT) then
+    flip = 1
+  elseif btn(BUTTONS.RIGHT) then
+    flip = 0
+  end
+
   spr(
     self.current_sprite,
     self.pos.x,
