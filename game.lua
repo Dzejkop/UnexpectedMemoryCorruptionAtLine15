@@ -243,6 +243,11 @@ function calc_corruption()
 end
 
 function render_corruption()
+  local CAGE_CORRUPTION = 0.005
+  if math.random() < CAGE_CORRUPTION then
+    EFFECTS:add(Cage:nicolas())
+  end
+
   local CHUNK_SIZE = 96
   for x=0,SCR_WIDTH,CHUNK_SIZE do
     for y=0,SCR_HEIGHT,CHUNK_SIZE do
@@ -702,6 +707,10 @@ SPRITES = {
     50,
     49
   },
+
+  CAGE = {
+    172
+  }
 }
 
 ------------------------
@@ -750,6 +759,49 @@ EFFECTS = Effects:new()
 
 function polar_to_cartesian(r, theta)
   return Vec.new(r * math.cos(theta), r * math.sin(theta))
+end
+
+-------------------------------
+---- Visual Effects / Cage ----
+-------------------------------
+local CAGE_SPRITE = 172
+local CAGE_TILE_WIDTH = 4
+local CAGE_TILE_HEIGHT = 5
+
+Cage = {}
+
+function Cage:nicolas(pos)
+  return setmetatable({
+    pos = Vec.new(
+      math.random(0, SCR_WIDTH - TILE_SIZE * (CAGE_TILE_WIDTH + 2)),
+      math.random(0, SCR_HEIGHT - TILE_SIZE * (CAGE_TILE_HEIGHT +3))),
+    flip = math.random(0 ,1),
+    scale = math.random() * 3.0 + 0.5,
+    sprites = SPRITES.CAGE,
+    timer = 0,
+  }, { __index = Cage })
+end
+
+function Cage:render(pos)
+  spr(
+    CAGE_SPRITE,
+    self.pos.x,
+    self.pos.y,
+    -1,
+    self.scale,
+    self.flip,
+    0,
+    CAGE_TILE_WIDTH,
+    CAGE_TILE_HEIGHT
+  )
+end
+
+function Cage:update(delta)
+  self.timer = self.timer + delta
+  if self.timer > 1 then
+    return true
+  end
+  return false
 end
 
 -------------------------------
@@ -2095,12 +2147,36 @@ TESTS()
 -- 070:0000000000000000000000002244000022440000224400002244000000440000
 -- 080:666666666777777f6777777f6777777f6777777f6777777f6777777fffffffff
 -- 086:0044000000440000004400000044000000440000004400000044000000440000
+-- 172:0000000000000000000000000000000d00000ccc0000fccc0000dccc0000cccc
+-- 173:0000000e000ddcccfdcccccccccccccccccccccccccccccccccccccccccccccc
+-- 174:ccccf000ccccce00ccccccdecccccccccccccccccccccccccccccccccccccccc
+-- 175:000000cc0000000c0000000dd0000000c0000000ce000000cd000000ccd00000
+-- 188:000fcccc000ecccc000dccc0000ccc00000ccfec000cefcc0000ecce0000cccd
+-- 189:cccccccceddeedcc000000f00edddefdce000dcc0edcd0dc0cefcccc0000defc
+-- 190:ccccccccccccccccdcccccd0dccccc00cccccccccccccccdcccccccccccc0cce
+-- 191:ccccd000ccccd000000fd00000000000ccce0000000df000dcd0d0000fc0e000
+-- 204:000ecccc000ecccc000dcccc000dcccc000dcccc000ecccc000ecccc000efecc
+-- 205:ccdddccccccccccccccccccccccccccccccccccccccccce0cccccd0dcccccd0c
+-- 206:cdcc0ccd0cccedccddccefcceeccd0dcccccc0fc0eccce0cccccceddcccccdee
+-- 207:0000ec00cddddc00cccccc00cccccd00cccccc00cccccd00cccccd00ccccce00
+-- 220:000ecccc000ecccc000dcccc000dcccc000dcccc000ecccc000ecccc000efecc
+-- 221:ccdddccccccccccccccccccccccccccccccccccccccccce0cccccd0dcccccd0c
+-- 222:dfccd0fdcccc0dccccccccccccccccccccccccdeffee0000cccccc00cccccc00
+-- 223:ccccce00cccccf00ccccc000ccccf00ecccc000edccde0efdcced0e0cccec000
 -- 224:0000000000000444000444440044400400440000004440040044444400444444
 -- 225:0000000044444400444444404444444044444440400044404000040044044400
+-- 236:e00eccccc000ccccc000dcccc0000dccc00000ccc00f000cc00ee00ed00dc000
+-- 237:cccd00fdccccf00dcccccd00ccccccccccccccccccccccccdccccccc0ecccccc
+-- 238:cccccf00ccccc00000000000cccccffccccccccccccccccccccccccccccccccc
+-- 239:dccec000dcced00ecccde00dccdd000cccf000fccc0000cccd000fcccf000ccc
 -- 240:0000444400004404000444440004444400000444000004040000040400000000
 -- 241:4444440004444400444444004444400044440000404040004040400000000000
 -- 242:0000000066000000006606660000666606660676000006660006600000600000
 -- 243:0000000000000066666066006766000066606660666000000006600000000600
+-- 252:d00ec000d000c000c000fd00c00eedf0cddccccdccdcccccccccccccffffffff
+-- 253:00dccccc000dcccc0000eccc00000ecc0000000fc0000000cccccccc00000000
+-- 254:cccccccccccccccdccccccd0cccccd00eeeef00000000000cccccccc00000000
+-- 255:e000eccc0000cccc0ddccccc0ccccccceccccccceccccccccccccccc00000000
 -- </TILES>
 
 -- <SPRITES>
