@@ -1022,7 +1022,6 @@ function Player:update(delta)
     local allowed_offset = 50
 
     if CW.is_set(BITS.BORDER_PORTALS) then
-      allowed_offset = 0
       if self.pos.y >= SCR_HEIGHT then
         self.pos.y = 0 + 1
       elseif self.pos.y <= -(TILE_SIZE * 2) then
