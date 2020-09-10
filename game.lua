@@ -29,6 +29,7 @@ local BITS = {
   SHIFT_POS_Y = 2,
   COLLISION = 3,
   SLOW_MOTION = 4,
+  BORDER_PORTALS = 6,
   DISENGAGE_MALEVOLENT_ORGANISM = 7,
 }
 
@@ -45,7 +46,7 @@ local SFX_CHANNEL = 3
 
 -- Level where the player gets spawned; useful for debugging purposes
 -- TODO keep it as `1` before deploying
-local FIRST_LEVEL = 1
+local FIRST_LEVEL = 7
 
 --------------------
 ---- GAME STATE ----
@@ -1020,14 +1021,27 @@ function Player:update(delta)
     -- for "creative solutions" like jumping outside-and-back-inside the map
     local allowed_offset = 50
 
-    local within_map =
-          self.pos.x >= -allowed_offset
-      and self.pos.y >= -allowed_offset
-      and self.pos.x < SCR_WIDTH + allowed_offset
-      and self.pos.y < SCR_HEIGHT + allowed_offset
+    if CW.is_set(BITS.BORDER_PORTALS) then
+      allowed_offset = 0
+      if self.pos.y >= SCR_HEIGHT then
+        self.pos.y = 0 + 1
+      elseif self.pos.y <= -(TILE_SIZE * 2) then
+        self.pos.y = SCR_HEIGHT - TILE_SIZE * 2 - 1
+      elseif self.pos.x <= 0 - TILE_SIZE then
+        self.pos.x = SCR_WIDTH - TILE_SIZE
+      elseif self.pos.x > SCR_WIDTH - TILE_SIZE then
+        self.pos.x = 0 - TILE_SIZE
+      end
+    else
+      local within_map =
+            self.pos.x >= -allowed_offset
+        and self.pos.y >= -allowed_offset
+        and self.pos.x < SCR_WIDTH + allowed_offset
+        and self.pos.y < SCR_HEIGHT + allowed_offset
 
-    if not within_map then
-      self:kill()
+      if not within_map then
+        self:kill()
+      end
     end
   end
 
@@ -1160,7 +1174,7 @@ function Player:render()
 
   -- When player's outside the map, render an array indicating player's
   -- position for user
-  if TICKS % 20 > 10 then
+  if not CW.is_set(BITS.BORDER_PORTALS) and TICKS % 20 > 10 then
     local min_x = -TILE_SIZE
     local min_y = -TILE_SIZE
     local max_x = SCR_WIDTH - 2 * TILE_SIZE
@@ -1358,6 +1372,12 @@ LEVELS = {
 
       }
   end
+  },
+
+  [7] = {
+    spawn_location = Vec.new(8, 9 * TILE_SIZE),
+    map_offset = Vec.new(150, 0),
+    allowed_cw_bits = 7
   },
 
 }
