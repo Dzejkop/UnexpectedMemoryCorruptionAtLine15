@@ -1082,14 +1082,16 @@ end
 function Player:render()
   local flip = 0
 
-  if self.vel.x < -0.01 and not self.is_dead then
-    flip = 1
-  end
+  if not self.is_dead then
+    if self.vel.x < -0.01 then
+      flip = 1
+    end
 
-  if btn(BUTTONS.LEFT) then
-    flip = 1
-  elseif btn(BUTTONS.RIGHT) then
-    flip = 0
+    if btn(BUTTONS.LEFT) then
+      flip = 1
+    elseif btn(BUTTONS.RIGHT) then
+      flip = 0
+    end
   end
 
   spr(
