@@ -261,7 +261,7 @@ function render_corruption()
 
   if math.random() < 0.002 then
     local color_shift = math.random(1, 16)
-    for n=0,16 do
+    for n=0,15 do
       local offset = n * 3
       -- I'm not actually sure, if these are actually RGB in that order, but that doesn't matter
       local r = peek(0x3fC0 + offset)
