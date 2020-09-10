@@ -16,6 +16,7 @@
         "line",
         "rect",
         "sfx",
-        "music"
+        "music",
+        "peek"
     ]
 }

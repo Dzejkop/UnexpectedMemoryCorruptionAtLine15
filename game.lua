@@ -240,49 +240,50 @@ end
 --------------------
 
 function calc_corruption()
-  -- local allowed_level_bits = LEVELS.allowed_cw_bits()
-
-  -- local corruption_part = 1.0 / allowed_level_bits
-
-  -- for i=0,allowed_level_bits do
-  -- end
-
-  return 1.0
+  return 0.0
 end
 
 function render_corruption()
-  local CAGE_CORRUPTION = 0.005
-  if math.random() < CAGE_CORRUPTION then
-    EFFECTS:add(Cage:nicolas())
-  end
+  local corruption = calc_corruption()
 
-  local CHUNK_SIZE = 96
-  for x=0,SCR_WIDTH,CHUNK_SIZE do
-    for y=0,SCR_HEIGHT,CHUNK_SIZE do
-      if math.random() < 0.01 then
-        local color_offset = math.random(1, 5)
-        for xx=0,CHUNK_SIZE do
-          for yy=0,CHUNK_SIZE do
-            local c = pix(x+xx, y+yy)
-            c = (c + color_offset) % 15
-            pix(x+xx, y+yy, c)
+  if corruption > 0.5 then
+    local CHUNK_SIZE = 96
+    for x=0,SCR_WIDTH,CHUNK_SIZE do
+      for y=0,SCR_HEIGHT,CHUNK_SIZE do
+        if math.random() < 0.01 then
+          local color_offset = math.random(1, 5)
+          for xx=0,CHUNK_SIZE do
+            for yy=0,CHUNK_SIZE do
+              local c = pix(x+xx, y+yy)
+              c = (c + color_offset) % 15
+              pix(x+xx, y+yy, c)
+            end
           end
         end
       end
     end
   end
 
-  if math.random() < 0.002 then
-    local color_shift = math.random(1, 16)
-    for n=0,15 do
-      local offset = n * 3
-      -- I'm not actually sure, if these are actually RGB in that order, but that doesn't matter
-      local r = peek(0x3fC0 + offset)
-      local g = peek(0x3fC0 + 8 + offset)
-      local b = peek(0x3fC0 + 16 + offset)
-      poke(0x3fC0 + offset, (r + color_shift) % 255)
-      poke(0x3fC0 + 8 + offset, (g + color_shift) % 255)
-      poke(0x3fC0 + 16 + offset, (b + color_shift) % 255)
+  if corruption > 0.7 then
+    local CAGE_CORRUPTION = 0.005
+    if math.random() < CAGE_CORRUPTION then
+      EFFECTS:add(Cage:nicolas())
+    end
+  end
+
+  if corruption > 0.8 then
+    if math.random() < 0.002 then
+      local color_shift = math.random(1, 16)
+      for n=0,15 do
+        local offset = n * 3
+        -- I'm not actually sure, if these are actually RGB in that order, but that doesn't matter
+        local r = peek(0x3fC0 + offset)
+        local g = peek(0x3fC0 + 8 + offset)
+        local b = peek(0x3fC0 + 16 + offset)
+        poke(0x3fC0 + offset, (r + color_shift) % 255)
+        poke(0x3fC0 + 8 + offset, (g + color_shift) % 255)
+        poke(0x3fC0 + 16 + offset, (b + color_shift) % 255)
+      end
     end
   end
 end
@@ -312,10 +313,6 @@ function render_corruption_scn(line)
       poke(0x3FFA, math.random(-8, 8))
     end
   end
-
-  -- if frame_random() < 0.025 then
-  --   poke(0x03FC0 + 1, math.random(0, 256))
-  -- end
 end
 
 -------------
@@ -994,6 +991,13 @@ function Player:update(delta)
 
   -- Check if player touches spikes
   if fget(game_mget(touched_tile), FLAGS.IS_HURT) then
+    if not self.is_dead then
+      self:kill()
+    end
+  end
+
+  -- Check if player touches spikes
+  if fget(game_mget(touched_tile), FLAGS.IS_GROUND) then
     if not self.is_dead then
       self:kill()
     end
