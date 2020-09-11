@@ -922,41 +922,50 @@ function Flag:update()
   end
 end
 
+function Flag:sprite()
+  local offset = LEVELS.shift_offset_pixels()
+  local pos = self.pos:sub(offset)
+  local flip = 0
+
+  return {
+    pos = pos,
+    flip = flip,
+  }
+end
+
 function Flag:render()
   if self.pos == nil then
     return
   end
 
-  local offset = LEVELS.shift_offset_pixels():mul(-1)
-  local sprite_pos = self.pos:add(offset)
-  local sprite_flip = 0
+  local sprite = self:sprite()
 
   if CW.is_set(BITS.FLAG_CONTROL) then
     local player_sprite = PLAYER:sprite()
 
-    sprite_pos = player_sprite.pos
-    sprite_flip = player_sprite.flip
+    sprite.pos = player_sprite.pos
+    sprite.flip = player_sprite.flip
   end
 
   spr(
     FLAG_DATA.SPRITES.STAND.TOP,
-    sprite_pos.x + TILE_SIZE,
-    sprite_pos.y,
+    sprite.pos.x + TILE_SIZE,
+    sprite.pos.y,
     0
   )
 
   spr(
     FLAG_DATA.SPRITES.STAND.BOTTOM,
-    sprite_pos.x + TILE_SIZE,
-    sprite_pos.y + TILE_SIZE,
+    sprite.pos.x + TILE_SIZE,
+    sprite.pos.y + TILE_SIZE,
     0
   )
 
-  if sprite_flip == 1 then
+  if sprite.flip == 1 then
     spr(
       FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
-      sprite_pos.x + TILE_SIZE + 2,
-      sprite_pos.y,
+      sprite.pos.x + TILE_SIZE + 2,
+      sprite.pos.y,
       0,
       1,
       1
@@ -964,8 +973,8 @@ function Flag:render()
   else
     spr(
       FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
-      sprite_pos.x,
-      sprite_pos.y,
+      sprite.pos.x,
+      sprite.pos.y,
       0
     )
   end
@@ -1279,8 +1288,10 @@ function Player:render()
   local sprite = self:sprite()
 
   if CW.is_set(BITS.FLAG_CONTROL) then
+    local offset = LEVELS.shift_offset_pixels()
+
     sprite.id = SPRITES.PLAYER.PAUSED
-    sprite.pos = FLAG.pos
+    sprite.pos = FLAG.pos:sub(offset)
     sprite.flip = 0
   end
 
