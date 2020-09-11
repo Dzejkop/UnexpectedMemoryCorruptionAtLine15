@@ -225,6 +225,7 @@ function CW.restart()
   CW.reg = 0
   CW.toggle(BITS.GRAVITY)
   CW.toggle(BITS.COLLISION)
+  UI.VARS.SEL_CWORD_BIT = 0
 end
 
 function CW.is_set(bit_idx)
