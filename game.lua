@@ -1000,7 +1000,7 @@ function Player:new()
   return setmetatable({
     pos = Vec.new(0, 0),
     vel = Vec.new(0, 0),
-    current_sprite = SPRITES.PLAYER.IDLE,
+    acc = Vec.new(0, 0),
     speed = 100,
     collider = {
       offset = Vec.new(2, 3),
@@ -1015,7 +1015,7 @@ end
 function Player:restart(spawn_location)
   self.pos = spawn_location
   self.vel = Vec.new(0, 0)
-  self.current_sprite = SPRITES.PLAYER.IDLE
+  self.acc = Vec.new(0, 0)
   self.is_on_ground = false
   self.is_dead = false
 end
@@ -1056,11 +1056,9 @@ function Player:collider_top_left()
 end
 
 function Player:kill()
-  AUDIO.play_note(1, "C#3", 64, 10)
-
   self.is_dead = true
-  self.current_sprite = SPRITES.PLAYER.DEAD
 
+  AUDIO.play_note(1, "C#3", 64, 10)
   EFFECTS:add(Poof:regular(self:collider_center()))
 
   RESPAWN_COOLDOWN_TICK_COUNTER = 0
@@ -1144,7 +1142,7 @@ function Player:update(delta)
       local allowed_offset = 50
 
       local within_map =
-            self.pos.x >= -allowed_offset
+      self.pos.x >= -allowed_offset
         and self.pos.y >= -allowed_offset
         and self.pos.x < SCR_WIDTH + allowed_offset
         and self.pos.y < SCR_HEIGHT + allowed_offset
@@ -1153,26 +1151,20 @@ function Player:update(delta)
         self:kill()
       end
     end
+  end
 
-    -- Update animations
-    if not self.is_on_ground then
-      self.current_sprite = SPRITES.PLAYER.IN_AIR
-    elseif math.abs(self.vel.x) > 1 then
-      PLAYER_RUNNING_ANIMATION.timer = PLAYER_RUNNING_ANIMATION.timer + (0.05 * delta * math.abs(self.vel.x))
+  -- Update animations
+  if math.abs(self.vel.x) > 1 then
+    PLAYER_RUNNING_ANIMATION.timer = PLAYER_RUNNING_ANIMATION.timer + (0.05 * delta * math.abs(self.vel.x))
 
-      if PLAYER_RUNNING_ANIMATION.timer - PLAYER_RUNNING_ANIMATION.last_change_at > PLAYER_RUNNING_ANIMATION.switch_every then
-        PLAYER_RUNNING_ANIMATION.current = 1 + ((PLAYER_RUNNING_ANIMATION.current + 2) % #PLAYER_RUNNING_ANIMATION.frames)
-        PLAYER_RUNNING_ANIMATION.last_change_at = PLAYER_RUNNING_ANIMATION.timer
-      end
-
-      self.current_sprite = PLAYER_RUNNING_ANIMATION.frames[PLAYER_RUNNING_ANIMATION.current]
-    else
-      if T - PLAYER_IDLING_ANIMATION.last_change_at > PLAYER_IDLING_ANIMATION.switch_every then
-        PLAYER_IDLING_ANIMATION.current = 1 + ((PLAYER_IDLING_ANIMATION.current + 2) % #PLAYER_IDLING_ANIMATION.frames)
-        PLAYER_IDLING_ANIMATION.last_change_at = T
-      end
-
-      self.current_sprite = PLAYER_IDLING_ANIMATION.frames[PLAYER_IDLING_ANIMATION.current]
+    if PLAYER_RUNNING_ANIMATION.timer - PLAYER_RUNNING_ANIMATION.last_change_at > PLAYER_RUNNING_ANIMATION.switch_every then
+      PLAYER_RUNNING_ANIMATION.current = 1 + ((PLAYER_RUNNING_ANIMATION.current + 2) % #PLAYER_RUNNING_ANIMATION.frames)
+      PLAYER_RUNNING_ANIMATION.last_change_at = PLAYER_RUNNING_ANIMATION.timer
+    end
+  else
+    if T - PLAYER_IDLING_ANIMATION.last_change_at > PLAYER_IDLING_ANIMATION.switch_every then
+      PLAYER_IDLING_ANIMATION.current = 1 + ((PLAYER_IDLING_ANIMATION.current + 2) % #PLAYER_IDLING_ANIMATION.frames)
+      PLAYER_IDLING_ANIMATION.last_change_at = T
     end
   end
 end
@@ -1216,8 +1208,10 @@ function Player:update_physics(delta)
 
     if btn(BUTTONS.RIGHT) then
       self.vel.x = math.clamp(self.vel.x + PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
+      self.acc.x = 1
     elseif btn(BUTTONS.LEFT) then
       self.vel.x = math.clamp(self.vel.x - PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
+      self.acc.x = -1
     else
       if self.is_on_ground then
         if math.abs(self.vel.x) > 1 then
@@ -1254,21 +1248,23 @@ function Player:update_physics(delta)
 end
 
 function Player:sprite()
-  local id = self.current_sprite
+  local id = SPRITES.PLAYER.IDLE_1
   local pos = self.pos
   local flip = 0
 
   if self.is_dead then
     id = SPRITES.PLAYER.DEAD
   else
-    if self.vel.x < -0.01 then
+    if self.acc.x < 0 then
       flip = 1
     end
 
-    if btn(BUTTONS.LEFT) then
-      flip = 1
-    elseif btn(BUTTONS.RIGHT) then
-      flip = 0
+    if not self.is_on_ground then
+      id = SPRITES.PLAYER.IN_AIR
+    elseif math.abs(self.vel.x) > 1 then
+      id = PLAYER_RUNNING_ANIMATION.frames[PLAYER_RUNNING_ANIMATION.current]
+    else
+      id = PLAYER_IDLING_ANIMATION.frames[PLAYER_IDLING_ANIMATION.current]
     end
   end
 
