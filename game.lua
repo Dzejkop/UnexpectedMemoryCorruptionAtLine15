@@ -449,11 +449,11 @@ function Enemies:add_many(enemies)
   end
 end
 
-function Enemies:update()
+function Enemies:update(delta)
   for _, enemy in ipairs(self.active_enemies) do
     if not enemy.paused then
       if enemy.update then
-        enemy:update()
+        enemy:update(delta)
       end
     end
 
@@ -527,7 +527,7 @@ function LostSoulEnemy:new(props)
   }, { __index = LostSoulEnemy })
 end
 
-function LostSoulEnemy:update()
+function LostSoulEnemy:update(delta)
   if TICKS % math.random(15, 45) == 0 then
     local pos = self.pos
       :sub(LEVELS.shift_offset_pixels())
@@ -538,11 +538,8 @@ function LostSoulEnemy:update()
   end
 
   if self.state == LOST_SOUL_ENEMY.STATES.FLYING then
-    self.vel.x = self.vel.x + self.acc.x
-    self.pos.x = self.pos.x + self.vel.x
-
-    self.vel.y = self.vel.y + self.acc.y
-    self.pos.y = self.pos.y + self.vel.y
+    self.vel = self.vel:add(self.acc:mul(delta))
+    self.pos = self.pos:add(self.vel:mul(delta))
   end
 
   if math.abs(self.vel.x) >= self.max_vel.x then
@@ -1486,16 +1483,16 @@ LEVELS = {
       return {
         LostSoulEnemy:new({
           pos = Vec.new(12 * TILE_SIZE, 8 * TILE_SIZE),
-          vel = Vec.new(-0.35, 0.1),
-          acc = Vec.new(0.0, -0.03),
-          max_vel = Vec.new(0.0, 0.2),
+          vel = Vec.new(-35, 10),
+          acc = Vec.new(0.0, -7),
+          max_vel = Vec.new(0.0, 20),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(15 * TILE_SIZE, 5 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.05),
-          acc = Vec.new(0.0, -0.05),
-          max_vel = Vec.new(0.1, 1),
+          vel = Vec.new(0.0, 5),
+          acc = Vec.new(0.0, -5),
+          max_vel = Vec.new(10, 100),
         }),
       }
     end
@@ -1559,13 +1556,16 @@ LEVELS = {
     allowed_cw_bits = 8,
   },
 
-  [8] = {
+  -- Skulls of death, impossibility
+  {
     map_offset = Vec.new(180, 0),
     spawn_location = Vec.new(1 * TILE_SIZE, 11 * TILE_SIZE),
     flag_location = Vec.new(7 * TILE_SIZE, 11 * TILE_SIZE),
     allowed_cw_bits = 8,
 
     build_enemies = function()
+      local MAX_VEL = 300;
+      local ACC = 900;
       return {
         SpiderEnemy:new({
           pos = Vec.new(9 * TILE_SIZE + (TILE_SIZE >> 1), 9 * TILE_SIZE),
@@ -1577,43 +1577,43 @@ LEVELS = {
         LostSoulEnemy:new({
           pos = Vec.new(3 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(7 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(11 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(15 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(19 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
 
         LostSoulEnemy:new({
           pos = Vec.new(23 * TILE_SIZE, -6 * TILE_SIZE),
           vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, 0.9),
-          max_vel = Vec.new(0.0, 8.3),
+          acc = Vec.new(0.0, ACC),
+          max_vel = Vec.new(0.0, MAX_VEL),
         }),
       }
     end
@@ -1791,7 +1791,7 @@ function game_update(delta)
     LEVELS.start_next()
   end
   EFFECTS:update(delta)
-  ENEMIES:update()
+  ENEMIES:update(delta)
   FLAG:update()
   PLAYER:update(delta)
 end
