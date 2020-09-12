@@ -89,6 +89,67 @@ function math.clamp(value, min, max)
   end
 end
 
+function math.lerp(a, b, t)
+  if t <= 0 then
+    return a
+  end
+
+  if t >= 1 then
+    return b
+  end
+
+  return a * (1 - t) + b * t
+end
+
+function math.lerpi(a, b, t)
+  return math.floor(math.lerp(a, b, t))
+end
+
+---------------
+---- Color ----
+---------------
+
+color = {}
+
+function color.build_rgb(r, g, b)
+  return (r << 16)
+       + (g << 8)
+       + b;
+end
+
+function color.split_rgb(c)
+  return (c & 0xFF0000) >> 16
+       , (c & 0x00FF00) >> 8
+       , (c & 0x0000FF)
+end
+
+function color.lerp(a, b, t)
+  local a_r, a_g, a_b = color.split_rgb(a)
+  local b_r, b_g, b_b = color.split_rgb(b)
+
+  local c_r = math.lerpi(a_r, b_r, t)
+  local c_g = math.lerpi(a_g, b_g, t)
+  local c_b = math.lerpi(a_b, b_b, t)
+
+  return color.build_rgb(c_r, c_g, c_b)
+end
+
+function color.read(id)
+  local r = peek(0x03FC0 + 3 * id + 0)
+  local g = peek(0x03FC0 + 3 * id + 1)
+  local b = peek(0x03FC0 + 3 * id + 2)
+
+  return color.build_rgb(r, g, b)
+end
+
+function color.store(id, c)
+  local r, g, b = color.split_rgb(c)
+
+  poke(0x03FC0 + 3 * id + 0, r)
+  poke(0x03FC0 + 3 * id + 1, g)
+  poke(0x03FC0 + 3 * id + 2, b)
+end
+
 -------------
 ---- Vec ----
 -------------
@@ -1163,11 +1224,17 @@ function Player:update(delta)
 
   if touches_flag then
     if not UI.TRANSITION then
-      music(TRACKS.VICTORY, -1, -1, false)
+      if LEVELS.has_next() then
+        music(TRACKS.VICTORY, -1, -1, false)
 
-      UI.enter(function ()
-        LEVELS.start_next()
-      end)
+        UI.enter(function ()
+          LEVELS.start_next()
+        end)
+      else
+        UI.enter(function ()
+          UI.SCREEN = 3
+        end)
+      end
     end
   end
 
@@ -1731,6 +1798,10 @@ function LEVELS.restart()
   LEVELS.start(LEVEL)
 end
 
+function LEVELS.has_next()
+  return LEVELS[LEVEL + 1] ~= nil
+end
+
 function LEVELS.start_next()
   LEVELS.start(LEVEL + 1)
 end
@@ -1920,16 +1991,16 @@ UI = {
   SCREEN = 1,
 
   SCREENS = {
-    -- Screen: Introduction
+    -- Screen: Intro
     [1] = {
-      update = function(screen)
+      update = function(this)
         -- Avoid bugging game by keeping keys pressed for more than one frame
-        if screen.vars.started then
+        if this.vars.started then
           return
         end
 
         if any_key() then
-          screen.vars.started = true
+          this.vars.started = true
 
           AUDIO.play_note(0, "C-4", 8)
           AUDIO.play_note(0, "E-4", 8)
@@ -1974,12 +2045,14 @@ UI = {
           :render()
       end,
 
-      scanline = function(line)
+      scanline = function(_, line)
         poke(0x3FF9, 0)
+        poke(0x3FF9 + 1, 0)
 
         if line < 30 then
-          if math.random() < 0.1 then
-            poke(0x3FF9, math.random(-8, 8))
+          if math.random() < 0.12 then
+            poke(0x3FF9, math.random(-3, 3))
+            poke(0x3FF9 + 1, math.random(-3, 3))
           end
         end
       end,
@@ -1991,7 +2064,8 @@ UI = {
 
     -- Screen: Game
     [2] = {
-      update = function()
+      update = function(_, delta)
+        -- If player's dead, allow them to respawn
         if PLAYER.is_dead then
           if is_respawn_allowed() and any_key() then
             LEVELS.restart()
@@ -2000,6 +2074,7 @@ UI = {
           return
         end
 
+        -- Handle the `Z` key
         if btnp(4) then
           if LEVELS.allowed_cw_bits() == 0 then
             AUDIO.play_note(0, "D#5", 4, 12)
@@ -2017,6 +2092,7 @@ UI = {
           end
         end
 
+        -- Handle the `A` key
         if btnp(6) then
           if LEVELS.allowed_cw_bits() == 0 then
             AUDIO.play_note(0, "D#5", 4, 12)
@@ -2025,6 +2101,7 @@ UI = {
           end
         end
 
+        -- Handle the `S` key
         if btnp(7) then
           if LEVELS.allowed_cw_bits() == 0 then
             AUDIO.play_note(0, "D#5", 4, 12)
@@ -2032,11 +2109,104 @@ UI = {
             UI.VARS.SEL_CWORD_BIT = (UI.VARS.SEL_CWORD_BIT + 1) % LEVELS.allowed_cw_bits()
           end
         end
+
+        local timescale = TIMESCALE
+
+        if CW.is_set(BITS.SLOW_MOTION) then
+          timescale = SLOW_MOTION_TIMESCALE
+        end
+
+        game_update(delta * timescale)
       end,
 
-      scanline = function(line)
+      render = function()
+        game_render()
+        hud_render()
+        render_corruption()
+      end,
+
+      scanline = function(_, line)
         render_corruption_scn(line)
       end
+    },
+
+    -- Screen: Outro
+    [3] = {
+      update = function(this)
+        if this.vars.stage == 0 then
+          if this.vars.stage_progress == 0 then
+            -- Prepare for fade-ins by resetting blue & white to be the same as
+            -- the background
+            color.store(10, color.read(0))
+            color.store(12, color.read(0))
+          end
+
+          -- Start fade-in for the `UNEXPECTED MEMORY CORRUPTION` text
+          if this.vars.stage_progress >= 50 then
+            local c = color.lerp(
+              color.read(0),
+              0x41A6f6,
+              (this.vars.stage_progress - 50) / 150
+            )
+
+            color.store(10, c)
+          end
+
+          -- Start fade-in for the `Thank you` text
+          if this.vars.stage_progress >= 180 then
+            local c = color.lerp(
+              color.read(0),
+              0xFFFFFF,
+              (this.vars.stage_progress - 180) / 150
+            )
+
+            color.store(12, c)
+          end
+
+          this.vars.stage_progress = this.vars.stage_progress + 1
+        elseif this.vars.stage == 1 then
+          if TICKS % 4 == 0 then
+            this.vars.visible_lines = this.vars.visible_lines + 1
+          end
+        end
+      end,
+
+      render = function()
+        UiLabel
+          :new()
+          :with_xy(0, 8)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_text("UNEXPECTED MEMORY CORRUPTION")
+          :with_color(10)
+          :with_letter_spacing(2)
+          :with_centered()
+          :render()
+
+        UiLabel
+          :new()
+          :with_xy(0, 60)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_line("Thank you for playing!")
+          :with_centered()
+          :render()
+
+        UiLabel
+          :new()
+          :with_xy(0, 80)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_line("TODO")
+          :with_centered()
+          :render()
+      end,
+
+      scanline = function(_, line)
+        UI.SCREENS[1]:scanline(line)
+      end,
+
+      vars = {
+        stage = 0,
+        stage_progress = 0,
+      }
     },
   },
 
@@ -2044,7 +2214,7 @@ UI = {
   TRANSITION = nil,
 
   VARS = {
-    -- Index of currently selected control word's bit; 0..4
+    -- Index of currently selected control word's bit; 0..7
     SEL_CWORD_BIT = 0,
   }
 }
@@ -2099,11 +2269,11 @@ function UI.enter(arg)
   end
 end
 
-function UI.update()
+function UI.update(delta)
   local screen = UI.SCREENS[UI.SCREEN]
 
   if screen.update then
-    screen:update()
+    screen:update(delta)
   end
 end
 
@@ -2125,7 +2295,7 @@ function UI.scanline(line)
   local screen = UI.SCREENS[UI.SCREEN]
 
   if screen.scanline then
-    screen.scanline(line)
+    screen:scanline(line)
   end
 end
 
@@ -2408,25 +2578,14 @@ SLOW_MOTION_TIMESCALE = 0.2
 
 function TIC()
   local delta = seconds() - T
+
   T = seconds()
 
-  UI.update()
+  UI.update(delta)
 
   cls()
 
-  local timescale = TIMESCALE
-  if CW.is_set(BITS.SLOW_MOTION) then
-    timescale = SLOW_MOTION_TIMESCALE
-  end
-
-  if UI.SCREEN > 1 then
-    game_render()
-    game_update(delta * timescale)
-    hud_render()
-  end
-
   UI.render()
-  render_corruption()
   AUDIO.update()
 
   TICKS = TICKS + 1
