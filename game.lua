@@ -1126,6 +1126,15 @@ function Player:height()
 end
 
 function Player:update(delta)
+  if DBG_SUDO_KEYS_ENABLED then
+    local x, y, left = mouse()
+
+    if left then
+      self.pos.x = x - TILE_SIZE
+      self.pos.y = y
+    end
+  end
+
   self:update_physics(delta)
 
   local offset = LEVELS.shift_offset_pixels():mul(-1)
