@@ -4,6 +4,9 @@
 
 local DBG_ALL_BITS_ALLOWED = false
 
+--- TODO set to `false` before deploying
+local DBG_SUDO_KEYS_ENABLED = true
+
 -------------------
 ---- Constants ----
 -------------------
@@ -46,8 +49,8 @@ local SFX = {
 local SFX_CHANNEL = 3
 
 -- Level where the player gets spawned; useful for debugging purposes
--- TODO keep it as `1` before deploying
-local FIRST_LEVEL = 1
+-- TODO set it to `2` before deploying
+local FIRST_LEVEL = 2
 
 --------------------
 ---- GAME STATE ----
@@ -1694,6 +1697,10 @@ function LEVELS.start_next()
   LEVELS.start(LEVEL + 1)
 end
 
+function LEVELS.start_prev()
+  LEVELS.start(LEVEL - 1)
+end
+
 function LEVELS.map_offset()
   local offset = LEVELS.shift_offset()
 
@@ -1836,6 +1843,18 @@ function collisions_update()
 end
 
 function game_update(delta)
+  if DBG_SUDO_KEYS_ENABLED then
+    -- `[`
+    if keyp(39) then
+      LEVELS:start_prev()
+    end
+
+    -- `]`
+    if keyp(40) then
+      LEVELS:start_next()
+    end
+  end
+
   EFFECTS:update(delta)
   ENEMIES:update(delta)
   FLAG:update()
