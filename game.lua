@@ -490,7 +490,7 @@ function Enemies:update(delta)
     -- Check collision with player
     if enemy.collision_radius then
       local level_offset = LEVELS.shift_offset_pixels()
-      local distance = PLAYER.pos:distance_to(enemy.pos:sub(level_offset))
+      local distance = PLAYER.pos:distance_to(enemy:pos():sub(level_offset))
 
       if distance < enemy:collision_radius() then
         if not PLAYER.is_dead then
@@ -549,17 +549,17 @@ LostSoulEnemy = {}
 
 function LostSoulEnemy:new(props)
   return setmetatable({
-    pos = props.pos,
-    vel = props.vel,
-    acc = props.acc,
-    max_vel = props.max_vel,
-    state = LOST_SOUL_ENEMY.STATES.FLYING,
+    pos_start = props.pos_start,
+    pos_end = props.pos_end,
+    cycle_length = props.cycle_length, -- how long it takes to get from start to end in seconds
+    cycle_val = 0.0, -- between 0 and 1, incremented by delta/cycle_length
+    on_cycle = true
   }, { __index = LostSoulEnemy })
 end
 
 function LostSoulEnemy:update(delta)
   if TICKS % math.random(15, 45) == 0 then
-    local pos = self.pos
+    local pos = self:pos()
       :sub(LEVELS.shift_offset_pixels())
       :add(Vec.one():mul(TILE_SIZE))
       :add(Vec.new(math.random(-10, 10), math.random(-10, 10)))
@@ -567,17 +567,17 @@ function LostSoulEnemy:update(delta)
     EFFECTS:add(Poof:small(pos))
   end
 
-  if self.state == LOST_SOUL_ENEMY.STATES.FLYING then
-    self.vel = self.vel:add(self.acc:mul(delta))
-    self.pos = self.pos:add(self.vel:mul(delta))
+  local increment = delta / self.cycle_length
+  if not self.on_cycle then
+    increment = -increment
   end
 
-  if math.abs(self.vel.x) >= self.max_vel.x then
-    self.acc.x = -self.acc.x
-  end
+  self.cycle_val = math.clamp(self.cycle_val + increment, 0, 1)
 
-  if math.abs(self.vel.y) >= self.max_vel.y then
-    self.acc.y = -self.acc.y
+  if self.cycle_val == 0 then
+    self.on_cycle = true
+  elseif self.cycle_val == 1 then
+    self.on_cycle = false
   end
 end
 
@@ -591,10 +591,10 @@ end
 
 function LostSoulEnemy:render()
   local offset = LEVELS.shift_offset_pixels()
-  local pos = self.pos:sub(offset)
+  local pos = self:pos():sub(offset)
 
   spr(
-    LOST_SOUL_ENEMY.SPRITES.BY_STATE[self.state],
+    LOST_SOUL_ENEMY.SPRITES.BY_STATE[LOST_SOUL_ENEMY.STATES.FLYING],
     pos.x,
     pos.y,
     0,
@@ -604,6 +604,18 @@ function LostSoulEnemy:render()
     2,
     2
   )
+end
+
+function LostSoulEnemy:pos()
+  function smoothstep(x)
+    x = math.clamp(x, 0.0, 1.0)
+    return x * x * (3 - 2 * x)
+  end
+
+  local cycle_pos = smoothstep(self.cycle_val)
+
+  local to_end = self.pos_end:sub(self.pos_start)
+  return self.pos_start:add(to_end:mul(cycle_pos))
 end
 
 function LostSoulEnemy:collision_radius()
@@ -629,7 +641,7 @@ SpiderEnemy = {}
 
 function SpiderEnemy:new(props)
   return setmetatable({
-    pos = props.pos,
+    position = props.pos,
     len = props.len or 1,
     max_len = props.max_len or 6,
     left_sign = props.left_sign,
@@ -668,7 +680,7 @@ end
 
 function SpiderEnemy:render()
   local offset = LEVELS.shift_offset_pixels()
-  local pos = self.pos:sub(offset)
+  local pos = self.position:sub(offset)
 
   line(
     pos.x + TILE_SIZE,
@@ -709,6 +721,10 @@ end
 
 function SpiderEnemy:collision_radius()
   return 10
+end
+
+function SpiderEnemy:pos()
+  return self.position
 end
 
 -----------------
@@ -1534,17 +1550,15 @@ LEVELS = {
     build_enemies = function()
       return {
         LostSoulEnemy:new({
-          pos = Vec.new(12 * TILE_SIZE, 8 * TILE_SIZE),
-          vel = Vec.new(-35, 10),
-          acc = Vec.new(0.0, -7),
-          max_vel = Vec.new(0.0, 20),
+          pos_start = Vec.new(12 * TILE_SIZE, 8 * TILE_SIZE),
+          pos_end = Vec.new(12 * TILE_SIZE, 10 * TILE_SIZE),
+          cycle_length = 1.0,
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(15 * TILE_SIZE, 5 * TILE_SIZE),
-          vel = Vec.new(0.0, 5),
-          acc = Vec.new(0.0, -5),
-          max_vel = Vec.new(10, 100),
+          pos_start = Vec.new(15 * TILE_SIZE, 5 * TILE_SIZE),
+          pos_end = Vec.new(20 * TILE_SIZE, 5 * TILE_SIZE),
+          cycle_length = 1.0,
         }),
       }
     end
@@ -1576,17 +1590,15 @@ LEVELS = {
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(2 * TILE_SIZE, 5 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.00),
-          acc = Vec.new(0.04, 0.00),
-          max_vel = Vec.new(1.8, 1),
+          pos_start = Vec.new(2 * TILE_SIZE, 5 * TILE_SIZE),
+          pos_end = Vec.new(4 * TILE_SIZE, 5 * TILE_SIZE),
+          cycle_length = 1.0
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(21 * TILE_SIZE, 5 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.00),
-          acc = Vec.new(0.04, 0.20),
-          max_vel = Vec.new(1.3, 1.3),
+          pos_start = Vec.new(21 * TILE_SIZE, 5 * TILE_SIZE),
+          pos_end = Vec.new(21 * TILE_SIZE, 9 * TILE_SIZE),
+          cycle_length = 1.0
         }),
 
         SpiderEnemy:new({
