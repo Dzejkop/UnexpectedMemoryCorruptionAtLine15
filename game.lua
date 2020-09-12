@@ -1472,7 +1472,7 @@ LEVELS = {
     build_enemies = function()
       return {
         SpiderEnemy:new({
-          pos = Vec.new(26 * TILE_SIZE, TILE_SIZE),
+          pos = Vec.new(2 * TILE_SIZE, TILE_SIZE),
           max_len = 16,
           left_sign = 260,
           right_sign = 261,
