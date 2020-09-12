@@ -1628,8 +1628,8 @@ LEVELS = {
     allowed_cw_bits = 8,
 
     build_enemies = function()
-      local MAX_VEL = 300;
-      local ACC = 900;
+      local MIN_Y = -6 * TILE_SIZE;
+      local MAX_Y = 9 * TILE_SIZE;
       return {
         SpiderEnemy:new({
           pos = Vec.new(9 * TILE_SIZE + (TILE_SIZE >> 1), 9 * TILE_SIZE),
@@ -1639,45 +1639,40 @@ LEVELS = {
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(3 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
+          pos_start = Vec.new(3 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(3 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
+        }),
+
+
+        LostSoulEnemy:new({
+          pos_start = Vec.new(7 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(7 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(7 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
+          pos_start = Vec.new(11 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(11 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(11 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
+          pos_start = Vec.new(15 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(15 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(15 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
+          pos_start = Vec.new(19 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(19 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
         }),
 
         LostSoulEnemy:new({
-          pos = Vec.new(19 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
-        }),
-
-        LostSoulEnemy:new({
-          pos = Vec.new(23 * TILE_SIZE, -6 * TILE_SIZE),
-          vel = Vec.new(0.0, 0.0),
-          acc = Vec.new(0.0, ACC),
-          max_vel = Vec.new(0.0, MAX_VEL),
+          pos_start = Vec.new(23 * TILE_SIZE, MIN_Y),
+          pos_end = Vec.new(23 * TILE_SIZE, MAX_Y),
+          cycle_length = 1.0
         }),
       }
     end
