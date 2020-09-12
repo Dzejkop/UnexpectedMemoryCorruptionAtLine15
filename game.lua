@@ -67,8 +67,8 @@ local PHYSICS = {
   GRAVITY_FORCE = 520,
   REDUCED_GRAVITY = 170,
   REVERSED_GRAVITY_FORCE = -10,
-  PLAYER_ACCELERATION = 200,
-  PLAYER_DECCELERATION = 600,
+  PLAYER_ACCELERATION = 220,
+  PLAYER_DECCELERATION = 350,
   PLAYER_JUMP_FORCE = 120
 }
 
@@ -1033,7 +1033,7 @@ FLAG = Flag:new()
 PLAYER_DIMENSION = Vec.new(2 * TILE_SIZE, 2 * TILE_SIZE)
 
 PLAYER_RUNNING_ANIMATION = {
-  switch_every = 0.2, -- seconds
+  switch_every = 0.3, -- seconds
   timer = 0,
   last_change_at = 0,
   current = 1,
@@ -1195,7 +1195,7 @@ function Player:update(delta)
       local allowed_offset = 50
 
       local within_map =
-      self.pos.x >= -allowed_offset
+            self.pos.x >= -allowed_offset
         and self.pos.y >= -allowed_offset
         and self.pos.x < SCR_WIDTH + allowed_offset
         and self.pos.y < SCR_HEIGHT + allowed_offset
@@ -1240,6 +1240,14 @@ function Player:update_physics(delta)
     self.vel.y = self.vel.y + PHYSICS.REVERSED_GRAVITY_FORCE * delta
   end
 
+  -- Apply friction
+  if self.is_on_ground then
+    if math.abs(self.vel.x) > 1 then
+      local sign = self.vel.x / math.abs(self.vel.x)
+      self.vel.x = self.vel.x - PHYSICS.PLAYER_DECCELERATION * sign * delta
+    end
+  end
+
   local is_colliding_horizontally = false
 
   if CW.is_set(BITS.COLLISION) then
@@ -1247,39 +1255,38 @@ function Player:update_physics(delta)
   end
 
   if not self.is_dead then
-    local steering_factor
+    -- Process moving left or right
+    if btn(BUTTONS.LEFT) or btn(BUTTONS.RIGHT) then
+      local acc = 1.0
+      local force = PHYSICS.PLAYER_ACCELERATION
 
-    if self.is_on_ground then
-      steering_factor = 1.0
-    else
-      if CW.is_set(BITS.GRAVITY) then
-        steering_factor = 0.6
-      else
-        steering_factor = 0.1
-      end
-    end
-
-    if btn(BUTTONS.RIGHT) then
-      self.vel.x = math.clamp(self.vel.x + PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
-      self.acc.x = 1
-    elseif btn(BUTTONS.LEFT) then
-      self.vel.x = math.clamp(self.vel.x - PHYSICS.PLAYER_ACCELERATION * delta * steering_factor, -self.speed, self.speed)
-      self.acc.x = -1
-    else
       if self.is_on_ground then
-        if math.abs(self.vel.x) > 1 then
-          local sign = self.vel.x / math.abs(self.vel.x)
-          self.vel.x = self.vel.x - PHYSICS.PLAYER_DECCELERATION * sign * delta
+        force = force + PHYSICS.PLAYER_DECCELERATION
+      else
+        force = 0.8 * force
 
-          -- at 10 pixels/s reduce to 0
-          if math.abs(self.vel.x) < 10 then
-            self.vel.x = 0
-          end
+        if CW.is_set(BITS.GRAVITY) then
+          acc = 0.6
+        else
+          acc = 0.1
         end
       end
+
+      if btn(BUTTONS.LEFT) then
+        acc = -acc
+      end
+
+      local delta_vx = acc * force * delta
+
+      self.vel.x = math.clamp(self.vel.x + delta_vx, -self.speed, self.speed)
+      self.acc.x = acc
+    else
+      if math.abs(self.vel.x) < 10 then
+        self.vel.x = 0
+      end
     end
 
-    -- jump
+    -- Process jumping
     if self.is_on_ground and btnp(BUTTONS.UP) then
       self.vel = self.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
       self.is_on_ground = false
@@ -1289,6 +1296,7 @@ function Player:update_physics(delta)
     end
   end
 
+  -- Apply collision
   if math.abs(self.vel.x) > 0 and is_colliding_horizontally then
     self.vel.x = 0
   end
@@ -2114,8 +2122,9 @@ function any_key()
   return false
 end
 
--------------
--- UiLabel --
+----------------
+-- Ui / Label --
+----------------
 
 UiLabel = {}
 
