@@ -1860,7 +1860,7 @@ UI = {
           :with_wh(SCR_WIDTH, SCR_HEIGHT)
           :with_text("UNEXPECTED MEMORY CORRUPTION")
           :with_color(10)
-          :with_letter_spacing(1.2)
+          :with_letter_spacing(2)
           :with_centered()
           :render()
 
@@ -1943,6 +1943,10 @@ UI = {
           end
         end
       end,
+
+      scanline = function(line)
+        render_corruption_scn(line)
+      end
     },
   },
 
@@ -2339,7 +2343,6 @@ end
 
 function SCN(line)
   UI.scanline(line)
-  render_corruption_scn(line)
 end
 
 -------------------
