@@ -942,7 +942,7 @@ function Flag:update()
     return
   end
 
-  if TICKS % 10 == 0 then
+  if TICKS % 7 == 0 then
     self.cloth.state_idx = (self.cloth.state_idx + 1) % (#FLAG_DATA.SPRITES.CLOTH + 1)
   end
 end
