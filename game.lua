@@ -1131,7 +1131,7 @@ function Player:update(delta)
 
     if left then
       self.pos.x = x - TILE_SIZE
-      self.pos.y = y
+      self.pos.y = y - TILE_SIZE
     end
   end
 
@@ -1452,7 +1452,10 @@ LEVELS = {
     allowed_cw_bits = 8,
   },
 
-  -- No bits, only small platforms
+  -- Intro - Steering
+  --
+  -- Objective:
+  -- - Introduce player to basic steering and physics (left, right, jumping)
   {
     map_offset = Vec.new(0, 0),
     spawn_location = Vec.new(4 * TILE_SIZE, 4 * TILE_SIZE),
@@ -1471,10 +1474,14 @@ LEVELS = {
     end,
   },
 
-  -- first bit only, player has to jump down to reach the flag
-  -- teaches:
-  -- 1. Spikes kill
-  -- 2. Can jump down
+  -- Intro - Bits
+  --
+  -- Objective:
+  -- - Introduce player to the concept of bits (and spikes, although it's not
+  --   strictly necessary to learn that at the moment)
+  --
+  -- Solutions:
+  -- - Toggle the collision bit, reach the flag
   {
     map_offset = Vec.new(0, 34),
     spawn_location = Vec.new(1 * TILE_SIZE, 1 * TILE_SIZE),
@@ -1493,9 +1500,14 @@ LEVELS = {
     end
   },
 
-  -- First 2 bits only
-  -- Spikes along the floor, cannot jump over it
-  -- has to use null gravity to go over it
+  -- Intro - Hostile Terrain
+  --
+  -- Objective:
+  -- - Introduce player to the first hostile item - spikes - and make the
+  --   player use `a` / `s` to switch currently selected bit
+  --
+  -- Solutions:
+  -- - Toggle the gravity bit, reach the flag
   {
     map_offset = Vec.new(30, 0),
     spawn_location = Vec.new(26 * TILE_SIZE, 4 * TILE_SIZE),
@@ -1514,14 +1526,16 @@ LEVELS = {
     end
   },
 
-  -- First mushroom level
-  -- player can jump over the mushroom, leaving the map
-  -- or use the shift level bit, to teleport to the over side
+  -- Mushroom Tree
+  --
+  -- Objective:
+  -- - Force player to jump outside the map, to show them that it's legal to
+  --   use empty space at the top of the map
   {
     map_offset = Vec.new(60, 0),
     spawn_location = Vec.new(1 * TILE_SIZE, 1 * TILE_SIZE),
     flag_location = Vec.new(27 * TILE_SIZE, 11 * TILE_SIZE),
-    allowed_cw_bits = 3,
+    allowed_cw_bits = 2,
 
     build_enemies = function()
       return {
@@ -1535,11 +1549,16 @@ LEVELS = {
     end
   },
 
-  -- Death maze level
-  -- So far 3 ways to win:
-  -- 1 - the way it was designed, use the shift bit to teleport a couple times and get to the flag
-  -- 2 - float above the level using null gravity and no collision
-  -- 3 - shift x, float above the spikes to go left, unshift x, you're near the flag
+  -- Death Maze
+  --
+  -- Objective:
+  -- - Force player to compose bits (i.e. toggle many of them at the same time)
+  --
+  -- Solutions:
+  -- - Move a bit, toggle shift-x, toggle shift-y, move a bit, toggle shift-x
+  -- - Toggle gravity, toggle collision, use fine-tuned movements to enable
+  --   gravity back again while floating near the flag
+  -- - Toggle shift-x, float above the spikes, toggle shift-x
   {
     map_offset = Vec.new(30, 34),
     spawn_location = Vec.new(136, 8),
@@ -1557,7 +1576,11 @@ LEVELS = {
     end
   },
 
-  -- Introduction to enemies, enables the slow mo bit
+  -- The Terminator
+  --
+  -- Objective:
+  -- - Introduce player to the concept of enemies and teach them how to use the
+  --   slow-motion bit
   {
     map_offset = Vec.new(120, 0),
     spawn_location = Vec.new(TILE_SIZE, TILE_SIZE),
@@ -1581,75 +1604,35 @@ LEVELS = {
     end
   },
 
-  -- Enables the flag bit
+  -- Call Me by Your Name
+  --
+  -- Objective:
+  -- - Introduce player to the flag-control bit
+  --
+  -- Solutions:
+  -- - Enable the "flag control" bit, easily reach player with flag
+  --
+  -- TODO:
+  -- - there are other solutions that don't involve switching the flag
   {
     map_offset = Vec.new(0, 17),
     spawn_location = Vec.new(4*TILE_SIZE, 11*TILE_SIZE),
     flag_location = Vec.new(23 * TILE_SIZE, 3 * TILE_SIZE),
     allowed_cw_bits = 6,
-
-    build_enemies = function()
-      return {}
-    end
-  },
-
-  -- The Second Mushroom level
-  -- teaches that the dead player can still win
-  -- NOTE: This is very hard for players to figure out
-  {
-    map_offset = Vec.new(90, 0),
-    spawn_location = Vec.new(8, 9 * TILE_SIZE),
-    flag_location = Vec.new(27 * TILE_SIZE, 11 * TILE_SIZE),
-    allowed_cw_bits = 2,
-
-    build_enemies = function()
-      return {
-        SpiderEnemy:new({
-          pos = Vec.new(25 * TILE_SIZE, -8, 1 * TILE_SIZE),
-          max_len = 16,
-          left_sign = nil,
-          right_sign = nil,
-        }),
-
-        SpiderEnemy:new({
-          pos = Vec.new(19 * TILE_SIZE - (TILE_SIZE / 2), 5 * TILE_SIZE, 1 * TILE_SIZE),
-          max_len = 32,
-          left_sign = nil,
-          right_sign = nil,
-        }),
-
-        LostSoulEnemy:new({
-          pos_start = Vec.new(2 * TILE_SIZE, 5 * TILE_SIZE),
-          pos_end = Vec.new(4 * TILE_SIZE, 5 * TILE_SIZE),
-          cycle_length = 1.0
-        }),
-
-        LostSoulEnemy:new({
-          pos_start = Vec.new(21 * TILE_SIZE, 5 * TILE_SIZE),
-          pos_end = Vec.new(21 * TILE_SIZE, 9 * TILE_SIZE),
-          cycle_length = 1.0
-        }),
-
-        SpiderEnemy:new({
-          pos = Vec.new(23 * TILE_SIZE, 10 * TILE_SIZE),
-          max_len = 8,
-          left_sign = nil,
-          right_sign = nil,
-        }),
-      }
-    end
   },
 
   -- Now You're Thinking With Portals
-  -- enables the portal bit
+  --
+  -- Objectives:
+  -- - Introduce player to the border-portals bit
   {
     map_offset = Vec.new(150, 0),
     spawn_location = Vec.new(8, 9 * TILE_SIZE),
     flag_location = Vec.new(27 * TILE_SIZE, 11 * TILE_SIZE),
-    allowed_cw_bits = 8,
+    allowed_cw_bits = 7,
   },
 
-  -- Skulls of death, impossibility
+  -- Skulls Of Death
   {
     map_offset = Vec.new(180, 0),
     spawn_location = Vec.new(1 * TILE_SIZE, 11 * TILE_SIZE),
