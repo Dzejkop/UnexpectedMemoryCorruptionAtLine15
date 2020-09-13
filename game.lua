@@ -701,10 +701,15 @@ SPIDER_ENEMY = {
 SpiderEnemy = {}
 
 function SpiderEnemy:new(props)
+  local min_len = props.min_len or 0
+  local max_len = props.max_len or 6
+  local len = props.len or math.random(min_len, max_len)
+
   return setmetatable({
     position = props.pos,
-    len = props.len or 1,
-    max_len = props.max_len or 6,
+    len = len,
+    min_len = min_len,
+    max_len = max_len,
     left_sign = props.left_sign,
     right_sign = props.right_sign,
     state = SPIDER_ENEMY.STATES.LOWERING,
@@ -725,7 +730,7 @@ function SpiderEnemy:update()
       self.len = self.len - 1
     end
 
-    if self.len <= 0 then
+    if self.len <= self.min_len then
       self.state = SPIDER_ENEMY.STATES.LOWERING
     end
   end
@@ -1609,7 +1614,15 @@ LEVELS = {
     build_enemies = function()
       return {
         SpiderEnemy:new({
-          pos = Vec.new(25 * TILE_SIZE, -8, 1 * TILE_SIZE),
+          pos = Vec.new(6.5 * TILE_SIZE, 4 * TILE_SIZE),
+          min_len = 6,
+          max_len = 16,
+          left_sign = 256,
+          right_sign = 256,
+        }),
+
+        SpiderEnemy:new({
+          pos = Vec.new(26 * TILE_SIZE, -TILE_SIZE),
           max_len = 16,
           left_sign = 259,
           right_sign = 261,
