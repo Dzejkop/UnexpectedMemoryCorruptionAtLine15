@@ -31,10 +31,8 @@ local BITS = {
   GRAVITY = 1,
   SHIFT_POS_X = 2,
   SHIFT_POS_Y = 3,
-  SLOW_MOTION = 4,
-  FLAG_CONTROL = 5,
-  BORDER_PORTALS = 6,
-  DISENGAGE_MALEVOLENT_ORGANISM = 7,
+  FLAG_CONTROL = 4,
+  BORDER_PORTALS = 5
 }
 
 local TRACKS = {
@@ -278,8 +276,6 @@ CW = {
       elseif bit_idx == BITS.FLAG_CONTROL then
         PLAYER.pos, FLAG.pos = FLAG.pos, PLAYER.pos
         PLAYER.vel = PLAYER.vel:mul(1.5)
-      elseif bit_idx == BITS.DISENGAGE_MALEVOLENT_ORGANISM then
-        disengage_malevolent_organism()
       end
     end
   }
@@ -417,8 +413,8 @@ function hud_render()
     local bit_x = (SCR_WIDTH - 8 * 2 * CHR_WIDTH - blank_space_width) / 2
     local bit_y = hud_y + (HUD_HEIGHT - CHR_HEIGHT) / 2 - 3
 
-    for bit_idx = 0,7 do
-      if bit_idx == 4 then
+    for bit_idx = 0,5 do
+      if bit_idx == 3 then
         bit_x = bit_x + blank_space_width
       end
 
@@ -566,24 +562,6 @@ function Enemies:render()
   for _, enemy in ipairs(self.active_enemies) do
     if enemy.render then
       enemy:render()
-    end
-  end
-end
-
-function disengage_malevolent_organism()
-  if #ENEMIES.active_enemies == 0 then
-    return
-  end
-
-  -- Pick one
-  enemy_idx = math.random(1, #ENEMIES.active_enemies)
-
-  -- Change activity
-  for i, v in ipairs(ENEMIES.active_enemies) do
-    if i == enemy_idx then
-      v.paused = true
-    else
-      v.paused = false
     end
   end
 end
@@ -1776,7 +1754,7 @@ LEVELS = {
     flag_location = Vec.new(27 * TILE_SIZE, 11 * TILE_SIZE),
     allowed_cw_bits = 7,
   },
-  
+
   -- Skulls Of Death
   {
     map_offset = Vec.new(180, 0),
@@ -2174,10 +2152,6 @@ UI = {
         end
 
         local timescale = TIMESCALE
-
-        if CW.is_set(BITS.SLOW_MOTION) then
-          timescale = SLOW_MOTION_TIMESCALE
-        end
 
         game_update(delta * timescale)
       end,
@@ -2682,7 +2656,6 @@ end
 T = seconds()
 
 TIMESCALE = 1.0
-SLOW_MOTION_TIMESCALE = 0.2
 
 function TIC()
   local delta = seconds() - T
@@ -2873,9 +2846,9 @@ TESTS()
 -- 034:0000400000044400004444400000400000040000000040000000040000004000
 -- 035:0000000000000000000440000040040404000044000004440000000000000000
 -- 036:0000000000040000000040000000040000000400004040000044000000444000
--- 037:00000000000aaa0000a000a000a444a0000a4a0000a040a000a444a0000aaa00
--- 038:0000000000020000002224000020240000000400000004000000040000000000
--- 039:0000000000400000004400004444400444444004004400000040000000000000
+-- 037:0000000000020000002224000020240000000400000004000000040000000000
+-- 038:0000000000400000004400004444400444444004004400000040000000000000
+-- 039:00000000000aaa0000a000a000a444a0000a4a0000a040a000a444a0000aaa00
 -- 040:000000000000000000000cc00000ccd0000ccd000043d0000044000000000000
 -- </SPRITES>
 
