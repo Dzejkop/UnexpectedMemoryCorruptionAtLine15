@@ -3,9 +3,7 @@
 -------------------------
 
 local DBG_ALL_BITS_ALLOWED = false
-
---- TODO set to `false` before deploying
-local DBG_SUDO_KEYS_ENABLED = true
+local DBG_SUDO_KEYS_ENABLED = false
 
 -------------------
 ---- Constants ----
@@ -47,7 +45,6 @@ local SFX = {
 local SFX_CHANNEL = 0
 
 -- Level where the player gets spawned; useful for debugging purposes
--- TODO set it to `2` before deploying
 local FIRST_LEVEL = 2
 
 --------------------
@@ -1741,9 +1738,6 @@ LEVELS = {
   --
   -- Solutions:
   -- - Enable the "flag control" bit, easily reach player with flag
-  --
-  -- TODO:
-  -- - there are other solutions that don't involve switching the flag
   {
     map_offset = Vec.new(30, 17),
     spawn_location = Vec.new(4 * TILE_SIZE, 11 * TILE_SIZE),
@@ -2723,7 +2717,6 @@ music(TRACKS.THEME)
 -------------------
 -- Debug helpers --
 -------------------
--- TODO remove before deploying
 function tprint (tbl, indent)
   if not indent then indent = 0 end
   for k, v in pairs(tbl) do
