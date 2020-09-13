@@ -38,15 +38,14 @@ local BITS = {
 }
 
 local TRACKS = {
-  VICTORY = 0,
+  THEME = 0,
 }
 
 local SFX = {
   JUMP = 3,
 }
 
--- First 3 tracks for music, last channel for sfx
-local SFX_CHANNEL = 3
+local SFX_CHANNEL = 0
 
 -- Level where the player gets spawned; useful for debugging purposes
 -- TODO set it to `2` before deploying
@@ -1225,8 +1224,6 @@ function Player:update(delta)
   if touches_flag then
     if not UI.TRANSITION then
       if LEVELS.has_next() then
-        -- music(TRACKS.VICTORY, -1, -1, false) TODO
-
         UI.enter(function ()
           LEVELS.start_next()
         end)
@@ -2133,68 +2130,108 @@ UI = {
     -- Screen: Outro
     [3] = {
       update = function(this)
-        if this.vars.stage == 0 then
-          if this.vars.stage_progress == 0 then
-            -- Prepare for fade-ins by resetting blue & white to be the same as
-            -- the background
-            color.store(10, color.read(0))
-            color.store(12, color.read(0))
-          end
+        local background = color.read(0)
 
-          -- Start fade-in for the `UNEXPECTED MEMORY CORRUPTION` text
-          if this.vars.stage_progress >= 50 then
-            local c = color.lerp(
-              color.read(0),
-              0x41A6f6,
-              (this.vars.stage_progress - 50) / 150
-            )
-
-            color.store(10, c)
-          end
-
-          -- Start fade-in for the `Thank you` text
-          if this.vars.stage_progress >= 180 then
-            local c = color.lerp(
-              color.read(0),
-              0xFFFFFF,
-              (this.vars.stage_progress - 180) / 150
-            )
-
-            color.store(12, c)
-          end
-
-          this.vars.stage_progress = this.vars.stage_progress + 1
-        elseif this.vars.stage == 1 then
-          if TICKS % 4 == 0 then
-            this.vars.visible_lines = this.vars.visible_lines + 1
-          end
+        if this.vars.progress == 0 then
+          color.store(1, background)
+          color.store(2, background)
+          color.store(3, background)
+          color.store(4, background)
         end
+
+        -- Start fade-in for the `UNEXPECTED MEMORY CORRUPTION` text
+        if this.vars.progress >= 50 then
+          local c = color.lerp(
+            background,
+            0x41A6f6,
+            (this.vars.progress - 50) / 150
+          )
+
+          color.store(1, c)
+        end
+
+        -- Start fade-in for the `Thank you` text
+        if this.vars.progress >= 180 then
+          local c = color.lerp(
+            background,
+            0xFFFFFF,
+            (this.vars.progress - 180) / 150
+          )
+
+          color.store(2, c)
+        end
+
+        -- Start fade-in for the `Created by` text
+        if this.vars.progress >= 280 then
+          local c = color.lerp(
+            background,
+            0xFFCD75,
+            (this.vars.progress - 280) / 150
+          )
+
+          color.store(3, c)
+        end
+
+        -- Start fade-in for the `Unexpected Jam` text
+        if this.vars.progress >= 380 then
+          local c = color.lerp(
+            background,
+            0x38B764,
+            (this.vars.progress - 380) / 150
+          )
+
+          color.store(4, c)
+        end
+
+        this.vars.progress = this.vars.progress + 1
       end,
 
-      render = function()
+      render = function(this)
         UiLabel
           :new()
           :with_xy(0, 8)
           :with_wh(SCR_WIDTH, SCR_HEIGHT)
           :with_text("UNEXPECTED MEMORY CORRUPTION")
-          :with_color(10)
+          :with_color(1)
           :with_letter_spacing(2)
           :with_centered()
           :render()
 
         UiLabel
           :new()
-          :with_xy(0, 60)
+          :with_xy(0, 40)
           :with_wh(SCR_WIDTH, SCR_HEIGHT)
-          :with_line("Thank you for playing!")
+          :with_line("You won, thank you for playing!")
+          :with_color(2)
           :with_centered()
           :render()
 
         UiLabel
           :new()
-          :with_xy(0, 80)
+          :with_xy(0, 70)
           :with_wh(SCR_WIDTH, SCR_HEIGHT)
-          :with_line("TODO")
+          :with_line("Created by:")
+          :with_color(3)
+          :with_centered()
+          :render()
+
+        for author_idx, author in ipairs(this.vars.authors) do
+          UiLabel
+            :new()
+            :with_xy(0, 75 + 8 * author_idx)
+            :with_wh(SCR_WIDTH, SCR_HEIGHT)
+            :with_line(author)
+            :with_color(3)
+            :with_centered()
+            :render()
+        end
+
+        UiLabel
+          :new()
+          :with_xy(0, 125)
+          :with_wh(SCR_WIDTH, SCR_HEIGHT)
+          :with_line("Unexpected Jam, 2020")
+          :with_color(4)
           :with_centered()
           :render()
       end,
@@ -2204,8 +2241,13 @@ UI = {
       end,
 
       vars = {
-        stage = 0,
-        stage_progress = 0,
+        authors = {
+          "J. Trad (aka dzejkop)",
+          "R. Chabowski (aka mgr inz. Rafal)",
+          "P. Wychowaniec (aka Patryk27)",
+        },
+
+        progress = 0,
       }
     },
   },
@@ -2595,7 +2637,7 @@ function SCN(line)
   UI.scanline(line)
 end
 
-music(0)
+music(TRACKS.THEME)
 
 -------------------
 -- Debug helpers --
