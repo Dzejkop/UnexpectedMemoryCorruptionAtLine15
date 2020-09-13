@@ -42,6 +42,7 @@ local TRACKS = {
 }
 
 local SFX = {
+  KILL = 1,
   JUMP = 3,
 }
 
@@ -1171,7 +1172,7 @@ end
 function Player:kill()
   self.is_dead = true
 
-  AUDIO.play_note(1, "C#3", 64, 10)
+  AUDIO.play_note(SFX.KILL, "C#3", 64, 15)
   EFFECTS:add(Poof:regular(self:collider_center()))
 
   RESPAWN_COOLDOWN_TICK_COUNTER = 0
@@ -1224,6 +1225,10 @@ function Player:update(delta)
   if touches_flag then
     if not UI.TRANSITION then
       if LEVELS.has_next() then
+        AUDIO.play_note(0, "C-5", 8, 11)
+        AUDIO.play_note(0, "F-5", 8, 11)
+        AUDIO.play_note(0, "A-5", 8, 11)
+
         UI.enter(function ()
           LEVELS.start_next()
         end)
@@ -1364,7 +1369,7 @@ function Player:update_physics(delta)
       self.vel = self.vel:add(Vec:up():mul(PHYSICS.PLAYER_JUMP_FORCE))
       self.is_on_ground = false
 
-      AUDIO.play_note(SFX.JUMP, "C#5", 16, 10)
+      AUDIO.play_note(SFX.JUMP, "C#5", 16, 12)
       EFFECTS:add(Poof:small(self:collider_bottom_center()))
     end
   end
@@ -2000,13 +2005,13 @@ UI = {
         if any_key() then
           this.vars.started = true
 
-          AUDIO.play_note(0, "C-4", 8)
-          AUDIO.play_note(0, "E-4", 8)
-          AUDIO.play_note(0, "G-4", 8)
-          AUDIO.play_note(0, "B-4", 8)
-          AUDIO.play_note(0, "D-4", 8)
-          AUDIO.play_note(0, "G-4", 8)
-          AUDIO.play_note(0, "C-5", 8)
+          AUDIO.play_note(0, "C-4", 8, 11)
+          AUDIO.play_note(0, "E-4", 8, 11)
+          AUDIO.play_note(0, "G-4", 8, 11)
+          AUDIO.play_note(0, "B-4", 8, 11)
+          AUDIO.play_note(0, "D-4", 8, 11)
+          AUDIO.play_note(0, "G-4", 8, 11)
+          AUDIO.play_note(0, "C-5", 8, 11)
 
           UI.enter(2)
         end
@@ -2078,11 +2083,11 @@ UI = {
             AUDIO.play_note(0, "D#5", 4, 12)
           else
             if CW.is_set(UI.VARS.SEL_CWORD_BIT) then
-              AUDIO.play_note(0, "D#5", 2, 10)
-              AUDIO.play_note(0, "C#5", 2, 10)
+              AUDIO.play_note(0, "D#5", 2, 12)
+              AUDIO.play_note(0, "C#5", 2, 12)
             else
-              AUDIO.play_note(0, "C#5", 2, 10)
-              AUDIO.play_note(0, "D#5", 2, 10)
+              AUDIO.play_note(0, "C#5", 2, 12)
+              AUDIO.play_note(0, "D#5", 2, 12)
             end
 
             increment_corruption()
@@ -2885,11 +2890,11 @@ TESTS()
 -- 001:030008000500031f03500e9204a30ab503b503c505c503c304c107cf03cd13cb03c909c90fba03bb03ad038f070109020303030003000e0003000380700000000000
 -- 002:000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000
 -- 003:01520162017301830193119421a421b541b651c761c781d791d7a1d0d1d0e1d0f150f110f100f100f100f100f100f100f100f100f100f100f100f100c00000000000
--- 016:4400440054008400b400e400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400070000000000
+-- 016:4400440044004400540064008400c400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400f400071000000000
 -- 017:650065006500550055005500550055006500650065007500750065006500550065006500650065007500850085007500650065005500550055006500370000000000
 -- 018:65006500550055005500550065006500650065006500650075008500850085009500a500a500a500a500b500b500c500d500d500e500e500f500f500300000000000
--- 019:8702770377028701970f770d770d77009702870377026700770e870d770e670177038703870267016700770e870077026703770377028700870f870e500000000000
--- 020:860186d286b2868486758647f620f610f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600110000000000
+-- 019:4702370327022701270f470d570d57004702370337023700470e370d370e370137034703470237013700370e470037023703370337023700370f470e501000000000
+-- 020:c601c6d2c6b2c684c675c647f620f610f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600f600110000000000
 -- </SFX>
 
 -- <PATTERNS>
@@ -2912,7 +2917,7 @@ TESTS()
 -- </PATTERNS>
 
 -- <TRACKS>
--- 000:180000180a00301b00180a05301b45581c00702d00581c85702dc5781c85502dc55410007c1000180000000000000000ec0200
+-- 000:180000180a00301b00180a05301b45581c00702d00581c85702dc5781c85502dc55410007c1000000000000000000000ec0200
 -- </TRACKS>
 
 -- <FLAGS>
