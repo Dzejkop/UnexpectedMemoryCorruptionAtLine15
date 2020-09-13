@@ -1552,7 +1552,7 @@ LEVELS = {
     map_offset = Vec.new(210, 119),
     spawn_location = Vec.new(1 * TILE_SIZE, 11 * TILE_SIZE),
     flag_location = Vec.new(27 * TILE_SIZE, 11 * TILE_SIZE),
-    allowed_cw_bits = 8,
+    allowed_cw_bits = 6,
   },
 
   -- Intro - Steering
@@ -1902,7 +1902,7 @@ end
 
 function LEVELS.allowed_cw_bits()
   if DBG_ALL_BITS_ALLOWED then
-    return 8
+    return 6
   end
 
   return LEVELS[LEVEL].allowed_cw_bits
