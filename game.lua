@@ -410,7 +410,7 @@ function hud_render()
     -- Size of the blank space between control word groups
     local blank_space_width = 40
 
-    local bit_x = (SCR_WIDTH - 8 * 2 * CHR_WIDTH - blank_space_width) / 2
+    local bit_x = (SCR_WIDTH - 6 * 2 * CHR_WIDTH - blank_space_width) / 2
     local bit_y = hud_y + (HUD_HEIGHT - CHR_HEIGHT) / 2 - 3
 
     for bit_idx = 0,5 do
