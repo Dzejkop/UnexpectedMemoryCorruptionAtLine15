@@ -1724,7 +1724,7 @@ LEVELS = {
 
     build_enemies = function()
       local MIN_Y = -6 * TILE_SIZE;
-      local MAX_Y = 9 * TILE_SIZE;
+      local MAX_Y = 7 * TILE_SIZE;
       return {
         SpiderEnemy:new({
           pos = Vec.new(9 * TILE_SIZE + (TILE_SIZE >> 1), 9 * TILE_SIZE),
@@ -1736,38 +1736,38 @@ LEVELS = {
         LostSoulEnemy:new({
           pos_start = Vec.new(3 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(3 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
 
 
         LostSoulEnemy:new({
           pos_start = Vec.new(7 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(7 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
 
         LostSoulEnemy:new({
           pos_start = Vec.new(11 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(11 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
 
         LostSoulEnemy:new({
           pos_start = Vec.new(15 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(15 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
 
         LostSoulEnemy:new({
           pos_start = Vec.new(19 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(19 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
 
         LostSoulEnemy:new({
           pos_start = Vec.new(23 * TILE_SIZE, MIN_Y),
           pos_end = Vec.new(23 * TILE_SIZE, MAX_Y),
-          cycle_length = 1.0
+          cycle_length = 0.6
         }),
       }
     end
