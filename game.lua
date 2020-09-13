@@ -1263,14 +1263,14 @@ function Player:update(delta)
 
     -- Check if player is outside the map
     if CW.is_set(BITS.BORDER_PORTALS) then
-      if self.pos.y >= SCR_HEIGHT then
-        self.pos.y = 0 + 1
-      elseif self.pos.y <= -(TILE_SIZE * 2) then
-        self.pos.y = SCR_HEIGHT - TILE_SIZE * 2 - 1
-      elseif self.pos.x <= 0 - TILE_SIZE then
-        self.pos.x = SCR_WIDTH - TILE_SIZE
-      elseif self.pos.x > SCR_WIDTH - TILE_SIZE then
-        self.pos.x = 0 - TILE_SIZE
+      if self.pos.y >= SCR_HEIGHT - HUD_HEIGHT then
+        self.pos.y = 1
+      elseif self.pos.y <= 0 then
+        self.pos.y = SCR_HEIGHT - HUD_HEIGHT - 1
+      elseif self.pos.x <= -TILE_SIZE then
+        self.pos.x = SCR_WIDTH - TILE_SIZE - 1
+      elseif self.pos.x >= SCR_WIDTH - TILE_SIZE then
+        self.pos.x = -TILE_SIZE + 1
       end
     else
       -- We're allowing player to go _just slightly_ outside the map to account
@@ -1441,6 +1441,37 @@ function Player:render()
     2,
     2
   )
+
+  if CW.is_set(BITS.BORDER_PORTALS) then
+    local overflow_left_x = -sprite.pos.x - 1
+    local overflow_right_x = sprite.pos.x + 2 * TILE_SIZE - SCR_WIDTH - 3
+
+    if overflow_left_x > 0 then
+      spr(
+        sprite.id,
+        SCR_WIDTH - overflow_left_x,
+        sprite.pos.y,
+        0,
+        1,
+        sprite.flip,
+        0,
+        2,
+        2
+      )
+    elseif overflow_right_x > 0 then
+      spr(
+        sprite.id,
+        overflow_right_x - TILE_SIZE * 2 + 2,
+        sprite.pos.y,
+        0,
+        1,
+        sprite.flip,
+        0,
+        2,
+        2
+      )
+    end
+  end
 
   -- When player's outside the map, render an array indicating player's
   -- position for user
@@ -1934,13 +1965,16 @@ function find_tiles_above_player()
 end
 
 function game_mget(vec)
-  local offset = LEVELS.map_offset()
-  local offset_vec = vec:add(offset:mul(1))
+  if vec.x < 0 or vec.y < 0 or vec.x >= 30 or vec.y >= 14 then
+    return nil
+  end
 
-  if offset_vec.x < 0 or offset_vec.y < 0 then
+  vec = vec:add(LEVELS.map_offset())
+
+  if vec.x < 0 or vec.y < 0 then
     return nil
   else
-    return mget(offset_vec.x, offset_vec.y)
+    return mget(vec.x, vec.y)
   end
 end
 
