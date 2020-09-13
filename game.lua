@@ -2111,8 +2111,6 @@ UI = {
           if is_respawn_allowed() and any_key() then
             LEVELS.restart()
           end
-
-          return
         end
 
         -- Handle the `Z` key
