@@ -1035,36 +1035,50 @@ function Flag:render()
     sprite.flip = player_sprite.flip
   end
 
-  spr(
-    FLAG_DATA.SPRITES.STAND.TOP,
-    sprite.pos.x + TILE_SIZE,
-    sprite.pos.y,
-    0
-  )
-
-  spr(
-    FLAG_DATA.SPRITES.STAND.BOTTOM,
-    sprite.pos.x + TILE_SIZE,
-    sprite.pos.y + TILE_SIZE,
-    0
-  )
-
-  if sprite.flip == 1 then
+  if PLAYER.is_dead and CW.is_set(BITS.FLAG_CONTROL) then
     spr(
-      FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
-      sprite.pos.x + TILE_SIZE + 2,
+      14,
+      sprite.pos.x,
       sprite.pos.y,
-      0,
+      -1,
       1,
-      1
+      0,
+      0,
+      2,
+      2
     )
   else
     spr(
-      FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
-      sprite.pos.x,
+      FLAG_DATA.SPRITES.STAND.TOP,
+      sprite.pos.x + TILE_SIZE,
       sprite.pos.y,
       0
     )
+  
+    spr(
+      FLAG_DATA.SPRITES.STAND.BOTTOM,
+      sprite.pos.x + TILE_SIZE,
+      sprite.pos.y + TILE_SIZE,
+      0
+    )
+  
+    if sprite.flip == 1 then
+      spr(
+        FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
+        sprite.pos.x + TILE_SIZE + 2,
+        sprite.pos.y,
+        0,
+        1,
+        1
+      )
+    else
+      spr(
+        FLAG_DATA.SPRITES.CLOTH[self.cloth.state_idx],
+        sprite.pos.x,
+        sprite.pos.y,
+        0
+      )
+    end
   end
 end
 
