@@ -274,7 +274,13 @@ CW = {
       if bit_idx == BITS.COLLISION then
         PLAYER.is_on_ground = false
       elseif bit_idx == BITS.FLAG_CONTROL then
-        PLAYER.pos, FLAG.pos = FLAG.pos, PLAYER.pos
+        local offset = LEVELS.shift_offset_pixels()
+        local player_pos = PLAYER.pos:add(offset)
+        local flag_pos = FLAG.pos:sub(offset)
+
+        PLAYER.pos = flag_pos
+        FLAG.pos = player_pos
+
         PLAYER.vel = PLAYER.vel:mul(1.5)
       end
     end
