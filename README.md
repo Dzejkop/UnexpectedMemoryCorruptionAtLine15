@@ -1,8 +1,7 @@
 # UnexpectedMemoryCorruption
 
-Our contribution for [Unexpected Jam](https://itch.io/jam/unexpectedjam):
-
-[Play it online!](https://dzejkop.itch.io/unexpected-memory-corruption)
+Our contribution for [Unexpected Jam](https://itch.io/jam/unexpectedjam) -
+[play it online!](https://dzejkop.itch.io/unexpected-memory-corruption)
 
 ![](https://img.itch.zone/aW1hZ2UvNzU0MDkxLzQyMjc4NDAucG5n/original/wAo1J0.png)
 
